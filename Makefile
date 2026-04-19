@@ -631,17 +631,22 @@ ifeq ($(NATIVE), osx)
     endif
   endif
   ifdef FRAMEWORK
+    ifeq ($(SDL3), 1)
+      SDL_FRAMEWORK_GLOB := SDL3.*
+    else
+      SDL_FRAMEWORK_GLOB := SDL2.*
+    endif
     ifeq ($(FRAMEWORKSDIR),)
       FRAMEWORKSDIR := $(strip $(if $(shell [ -d $(HOME)/Library/Frameworks ] && echo 1), \
-                             $(if $(shell find $(HOME)/Library/Frameworks -name 'SDL2.*'), \
+                             $(if $(shell find $(HOME)/Library/Frameworks -name '$(SDL_FRAMEWORK_GLOB)'), \
                                $(HOME)/Library/Frameworks,),))
     endif
     ifeq ($(FRAMEWORKSDIR),)
-      FRAMEWORKSDIR := $(strip $(if $(shell find /Library/Frameworks -name 'SDL2.*'), \
+      FRAMEWORKSDIR := $(strip $(if $(shell find /Library/Frameworks -name '$(SDL_FRAMEWORK_GLOB)'), \
                                  /Library/Frameworks,))
     endif
     ifeq ($(FRAMEWORKSDIR),)
-      $(error "SDL2 framework not found")
+      $(error "SDL framework not found")
     endif
   endif
   ifeq ($(LOCALIZE), 1)
@@ -776,29 +781,44 @@ ifeq ($(TILES), 1)
   SDL = 1
   BINDIST_EXTRAS += gfx
   ifeq ($(NATIVE),osx)
-    ifdef FRAMEWORK
-      OSX_INC = -F$(FRAMEWORKSDIR) \
+    ifeq ($(SDL3), 1)
+      ifdef FRAMEWORK
+        OSX_INC = -F$(FRAMEWORKSDIR) \
+		-I$(FRAMEWORKSDIR)/SDL3.framework/Headers \
+		-I$(FRAMEWORKSDIR)/SDL3_image.framework/Headers \
+		-I$(FRAMEWORKSDIR)/SDL3_ttf.framework/Headers
+        LDFLAGS += -F$(FRAMEWORKSDIR) -rpath $(FRAMEWORKSDIR) \
+		 -framework SDL3 -framework SDL3_image -framework SDL3_ttf -framework Cocoa
+        CXXFLAGS += $(OSX_INC)
+      else
+        CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags sdl3 sdl3-image sdl3-ttf))
+        LDFLAGS += -framework Cocoa $(shell $(PKG_CONFIG) --libs sdl3 sdl3-image sdl3-ttf)
+      endif
+    else
+      ifdef FRAMEWORK
+        OSX_INC = -F$(FRAMEWORKSDIR) \
 		-I$(FRAMEWORKSDIR)/SDL2.framework/Headers \
 		-I$(FRAMEWORKSDIR)/SDL2_image.framework/Headers \
 		-I$(FRAMEWORKSDIR)/SDL2_ttf.framework/Headers
 			ifeq ($(SOUND), 1)
 				OSX_INC += -I$(FRAMEWORKSDIR)/SDL2_mixer.framework/Headers
 			endif
-      LDFLAGS += -F$(FRAMEWORKSDIR) -rpath $(FRAMEWORKSDIR) \
+        LDFLAGS += -F$(FRAMEWORKSDIR) -rpath $(FRAMEWORKSDIR) \
 		 -framework SDL2 -framework SDL2_image -framework SDL2_ttf -framework Cocoa
 		 ifeq ($(SOUND), 1)
 		 	LDFLAGS += -framework SDL2_mixer
 		 endif
-      CXXFLAGS += $(OSX_INC)
-    else # libsdl build
-      DEFINES += -DOSX_SDL2_LIBS
-      # handle #include "SDL2/SDL.h" and "SDL.h"
-      CXXFLAGS += $(subst -I,-isystem ,$(shell sdl2-config --cflags)) \
+        CXXFLAGS += $(OSX_INC)
+      else # libsdl build
+        DEFINES += -DOSX_SDL2_LIBS
+        # handle #include "SDL2/SDL.h" and "SDL.h"
+        CXXFLAGS += $(subst -I,-isystem ,$(shell sdl2-config --cflags)) \
 		  -isystem $(shell dirname $(shell sdl2-config --cflags | sed 's/-I\(.[^ ]*\) .*/\1/'))
-      LDFLAGS += -framework Cocoa $(shell sdl2-config --libs) -lSDL2_ttf
-      LDFLAGS += -lSDL2_image
-      ifeq ($(SOUND), 1)
-        LDFLAGS += -lSDL2_mixer
+        LDFLAGS += -framework Cocoa $(shell sdl2-config --libs) -lSDL2_ttf
+        LDFLAGS += -lSDL2_image
+        ifeq ($(SOUND), 1)
+          LDFLAGS += -lSDL2_mixer
+        endif
       endif
     endif
     CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags freetype2))
@@ -1381,12 +1401,18 @@ ifeq ($(SOUND), 1)
 endif  # ifeq ($(SOUND), 1)
 	cp -R gfx $(APPRESOURCESDIR)/
 ifdef FRAMEWORK
+ifeq ($(SDL3), 1)
+	cp -R $(FRAMEWORKSDIR)/SDL3.framework $(APPRESOURCESDIR)/
+	cp -R $(FRAMEWORKSDIR)/SDL3_image.framework $(APPRESOURCESDIR)/
+	cp -R $(FRAMEWORKSDIR)/SDL3_ttf.framework $(APPRESOURCESDIR)/
+else
 	cp -R $(FRAMEWORKSDIR)/SDL2.framework $(APPRESOURCESDIR)/
 	cp -R $(FRAMEWORKSDIR)/SDL2_image.framework $(APPRESOURCESDIR)/
 	cp -R $(FRAMEWORKSDIR)/SDL2_ttf.framework $(APPRESOURCESDIR)/
 ifeq ($(SOUND), 1)
 	cp -R $(FRAMEWORKSDIR)/SDL2_mixer.framework $(APPRESOURCESDIR)/
 endif  # ifeq ($(SOUND), 1)
+endif  # ifeq ($(SDL3), 1)
 endif  # ifdef FRAMEWORK
 	dylibbundler -of -b -x $(APPRESOURCESDIR)/$(APPTARGET) -d $(APPRESOURCESDIR)/ -p @executable_path/
 
