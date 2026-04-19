@@ -14,6 +14,7 @@ set(CMAKE_TLS_VERIFY ON)
 # Build options
 include(CMakeDependentOption)
 option(TILES "Build graphical tileset version." "OFF")
+option(USE_SDL3 "Build against SDL3 instead of SDL2 (requires TILES)." "OFF")
 option(CURSES "Build curses version." "ON")
 option(SOUND "Support for in-game sounds & music." "OFF")
 option(BACKTRACE "Support for printing stack backtraces on crash" "ON")
@@ -211,6 +212,7 @@ endif ()
 message(STATUS "GIT_BINARY                    : ${GIT_EXECUTABLE}")
 message(STATUS "DYNAMIC_LINKING               : ${DYNAMIC_LINKING}")
 message(STATUS "TILES                         : ${TILES}")
+message(STATUS "USE_SDL3                      : ${USE_SDL3}")
 message(STATUS "CURSES                        : ${CURSES}")
 message(STATUS "SOUND                         : ${SOUND}")
 message(STATUS "BACKTRACE                     : ${BACKTRACE}")
@@ -271,7 +273,34 @@ find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 
 # Check for build types and libraries
-if (TILES)
+if (TILES AND USE_SDL3)
+    message(STATUS "Searching for SDL3 library --")
+    find_package(SDL3 CONFIG)
+    if (NOT (SDL3_FOUND OR TARGET SDL3::SDL3 OR TARGET SDL3::SDL3-static))
+        message(FATAL_ERROR
+                "USE_SDL3=ON requires SDL3 to be installed. \
+                 Install the SDL3 development libraries, \
+                 or set USE_SDL3=OFF to build against SDL2.")
+    endif ()
+
+    message(STATUS "Searching for SDL3_ttf library --")
+    find_package(SDL3_ttf CONFIG)
+    if (NOT (SDL3_TTF_FOUND OR TARGET SDL3_ttf::SDL3_ttf OR TARGET SDL3_ttf::SDL3_ttf-static))
+        message(FATAL_ERROR
+                "USE_SDL3=ON requires SDL3_ttf to be installed.")
+    endif ()
+
+    message(STATUS "Searching for SDL3_image library --")
+    find_package(SDL3_image CONFIG)
+    if (NOT (SDL3_IMAGE_FOUND OR TARGET SDL3_image::SDL3_image
+                              OR TARGET SDL3_image::SDL3_image-static))
+        message(FATAL_ERROR
+                "USE_SDL3=ON requires SDL3_image to be installed.")
+    endif ()
+    add_definitions(-DTILES -DUSE_SDL3)
+endif ()
+
+if (TILES AND NOT USE_SDL3)
     # Find SDL, SDL_ttf & SDL_image for graphical install
     message(STATUS "Searching for SDL2 library --")
     if (NOT CMAKE_FIND_PACKAGE_PREFER_CONFIG)
@@ -374,6 +403,11 @@ if (CURSES)
 endif ()
 
 if (SOUND)
+    if (USE_SDL3)
+        message(FATAL_ERROR
+                "SDL3_mixer support is not yet implemented. \
+                 Build with -DSOUND=OFF when -DUSE_SDL3=ON.")
+    endif ()
     # Sound requires SDL_mixer library
     message(STATUS "Searching for SDL2_mixer library --")
     if (VCPKG_MANIFEST_MODE)

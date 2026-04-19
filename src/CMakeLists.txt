@@ -117,18 +117,49 @@ if (TILES)
         target_link_libraries(cataclysm-tiles-common PUBLIC ${CMAKE_THREAD_LIBS_INIT})
     endif ()
 
-    if (NOT DYNAMIC_LINKING)
-        target_link_libraries(cataclysm-tiles-common PUBLIC
-            SDL2::SDL2-static
-            SDL2_image::SDL2_image-static
-            SDL2_ttf::SDL2_ttf-static
-        )
-    else()
-        target_link_libraries(cataclysm-tiles-common PUBLIC
-            SDL2::SDL2
-            SDL2_image::SDL2_image
-            SDL2_ttf::SDL2_ttf
-        )
+    if (USE_SDL3)
+        if (NOT DYNAMIC_LINKING)
+            if (TARGET SDL3::SDL3-static)
+                set(_SDL3 SDL3::SDL3-static)
+            else ()
+                set(_SDL3 SDL3::SDL3)
+            endif ()
+            if (TARGET SDL3_image::SDL3_image-static)
+                set(_SDL3_IMAGE SDL3_image::SDL3_image-static)
+            else ()
+                set(_SDL3_IMAGE SDL3_image::SDL3_image)
+            endif ()
+            if (TARGET SDL3_ttf::SDL3_ttf-static)
+                set(_SDL3_TTF SDL3_ttf::SDL3_ttf-static)
+            else ()
+                set(_SDL3_TTF SDL3_ttf::SDL3_ttf)
+            endif ()
+            target_link_libraries(cataclysm-tiles-common PUBLIC
+                ${_SDL3}
+                ${_SDL3_IMAGE}
+                ${_SDL3_TTF}
+            )
+        else()
+            target_link_libraries(cataclysm-tiles-common PUBLIC
+                SDL3::SDL3
+                SDL3_image::SDL3_image
+                SDL3_ttf::SDL3_ttf
+            )
+        endif ()
+    else ()
+        if (NOT DYNAMIC_LINKING)
+            target_link_libraries(cataclysm-tiles-common PUBLIC
+                SDL2::SDL2-static
+                SDL2_image::SDL2_image-static
+                SDL2_ttf::SDL2_ttf-static
+            )
+        else()
+            target_link_libraries(cataclysm-tiles-common PUBLIC
+                SDL2::SDL2
+                SDL2_image::SDL2_image
+                SDL2_ttf::SDL2_ttf
+            )
+        endif ()
     endif ()
     if (SOUND)
         if (NOT DYNAMIC_LINKING)

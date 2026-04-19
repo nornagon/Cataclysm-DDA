@@ -76,6 +76,7 @@ zzip
 .vs/
 Directory.Build.props
 Directory.Build.targets
+!msvc-full-features/Directory.Build.props
 
 # Visual Studio Code
 .vscode/
