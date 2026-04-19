@@ -762,6 +762,12 @@ endif
 
 PKG_CONFIG = $(CROSS)pkg-config
 
+ifeq ($(SDL3), 1)
+  SDL = 1
+  TILES = 1
+  DEFINES += -DUSE_SDL3
+endif
+
 ifeq ($(SDL), 1)
   TILES = 1
 endif
@@ -798,18 +804,33 @@ ifeq ($(TILES), 1)
     CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags freetype2))
     LDFLAGS += $(shell $(PKG_CONFIG) --libs freetype2)
   else ifneq ($(NATIVE),emscripten)
-    CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags sdl2))
-    CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags SDL2_image SDL2_ttf))
-    CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags freetype2))
+    ifeq ($(SDL3), 1)
+      CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags sdl3))
+      CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags sdl3-image sdl3-ttf))
+      CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags freetype2))
 
-    ifeq ($(STATIC), 1)
-      LDFLAGS += $(shell $(PKG_CONFIG) sdl2 --static --libs)
+      ifeq ($(STATIC), 1)
+        LDFLAGS += $(shell $(PKG_CONFIG) sdl3 --static --libs)
+      else
+        LDFLAGS += $(shell $(PKG_CONFIG) sdl3 --libs)
+      endif
+
+      LDFLAGS += $(shell $(PKG_CONFIG) --libs sdl3-image sdl3-ttf)
+      LDFLAGS += $(shell $(PKG_CONFIG) --libs freetype2)
     else
-      LDFLAGS += $(shell $(PKG_CONFIG) sdl2 --libs)
-    endif
+      CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags sdl2))
+      CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags SDL2_image SDL2_ttf))
+      CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags freetype2))
 
-    LDFLAGS += -lSDL2_ttf -lSDL2_image
-    LDFLAGS += $(shell $(PKG_CONFIG) --libs freetype2)
+      ifeq ($(STATIC), 1)
+        LDFLAGS += $(shell $(PKG_CONFIG) sdl2 --static --libs)
+      else
+        LDFLAGS += $(shell $(PKG_CONFIG) sdl2 --libs)
+      endif
+
+      LDFLAGS += -lSDL2_ttf -lSDL2_image
+      LDFLAGS += $(shell $(PKG_CONFIG) --libs freetype2)
+    endif
   endif
 
   DEFINES += -DTILES
@@ -880,6 +901,9 @@ else
 endif # TILES
 
 ifeq ($(SOUND), 1)
+  ifeq ($(SDL3), 1)
+    $(error SDL3_mixer support is not yet implemented. Use SOUND=0 with SDL3=1)
+  endif
   ifeq ($(NATIVE),osx)
     ifndef FRAMEWORK # libsdl build
       ifeq ($(MACPORTS), 1)
@@ -906,6 +930,7 @@ endif
 # We don't use SDL_main -- we have proper main()/WinMain()
 CXXFLAGS := $(filter-out -Dmain=SDL_main,$(CXXFLAGS))
 LDFLAGS := $(filter-out -lSDL2main,$(LDFLAGS))
+LDFLAGS := $(filter-out -lSDL3main,$(LDFLAGS))
 
 ifeq ($(BSD), 1)
   # BSDs have backtrace() and friends in a separate library
@@ -1022,7 +1047,11 @@ C_SOURCES += $(THIRD_PARTY_C_SOURCES)
 IMGUI_SOURCES = $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_stdlib.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 ifeq ($(SDL), 1)
 	IMGUI_SOURCES += $(IMGUI_DIR)/imgui_freetype.cpp
-	IMGUI_SOURCES += $(IMGUI_DIR)/imgui_impl_sdl2.cpp $(IMGUI_DIR)/imgui_impl_sdlrenderer2.cpp
+	ifeq ($(SDL3), 1)
+		IMGUI_SOURCES += $(IMGUI_DIR)/imgui_impl_sdl3.cpp $(IMGUI_DIR)/imgui_impl_sdlrenderer3.cpp
+	else
+		IMGUI_SOURCES += $(IMGUI_DIR)/imgui_impl_sdl2.cpp $(IMGUI_DIR)/imgui_impl_sdlrenderer2.cpp
+	endif
 else
 	IMGUI_SOURCES += $(IMTUI_DIR)/imtui-impl-ncurses.cpp $(IMTUI_DIR)/imtui-impl-text.cpp
 	DEFINES += -DIMTUI

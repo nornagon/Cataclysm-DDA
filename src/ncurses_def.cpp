@@ -199,6 +199,10 @@ void refresh_display()
     catacurses::doupdate();
 }
 
+void refresh_mouse_config()
+{
+}
+
 void catacurses::doupdate()
 {
     return curses_check_result( ::doupdate(), OK, "doupdate" );
