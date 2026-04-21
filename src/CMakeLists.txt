@@ -162,15 +162,17 @@ if (TILES)
         endif ()
     endif ()
     if (SOUND)
-        if (NOT DYNAMIC_LINKING)
-            target_link_libraries(cataclysm-tiles-common PUBLIC
-                SDL2_mixer::SDL2_mixer-static
-            )
-        else()
-            target_link_libraries(cataclysm-tiles-common PUBLIC
-                SDL2_mixer::SDL2_mixer
-            )
-        endif()
+        if (NOT USE_SDL3)
+            if (NOT DYNAMIC_LINKING)
+                target_link_libraries(cataclysm-tiles-common PUBLIC
+                    SDL2_mixer::SDL2_mixer-static
+                )
+            else()
+                target_link_libraries(cataclysm-tiles-common PUBLIC
+                    SDL2_mixer::SDL2_mixer
+                )
+            endif()
+        endif ()
         add_definitions(-DSDL_SOUND)
     endif ()
 
@@ -341,7 +343,7 @@ if (MINGW AND NOT RELEASE)
                 ${RuntimeLib_SDL2_TTF}
                 ${RuntimeLib_ft}
                 ${RuntimeLib_glib})
-        if (SOUND)
+        if (SOUND AND NOT USE_SDL3)
             find_library(RuntimeLib_SDL_SND  "SDL2_mixer")
             find_library(RuntimeLib_flac  "libFLAC-8")
             find_library(RuntimeLib_ogg  "libogg-0")

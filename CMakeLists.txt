@@ -402,12 +402,17 @@ if (CURSES)
     endif ()
 endif ()
 
-if (SOUND)
-    if (USE_SDL3)
+if (SOUND AND USE_SDL3)
+    message(STATUS "Searching for SDL3_mixer library --")
+    find_package(SDL3_mixer CONFIG)
+    if (NOT (SDL3_MIXER_FOUND OR TARGET SDL3_mixer::SDL3_mixer
+                              OR TARGET SDL3_mixer::SDL3_mixer-static))
         message(FATAL_ERROR
-                "SDL3_mixer support is not yet implemented. \
-                 Build with -DSOUND=OFF when -DUSE_SDL3=ON.")
-    endif ()
+                "USE_SDL3 + SOUND requires SDL3_mixer to be installed.")
+    endif()
+endif ()
+
+if (SOUND AND NOT USE_SDL3)
     # Sound requires SDL_mixer library
     message(STATUS "Searching for SDL2_mixer library --")
     if (VCPKG_MANIFEST_MODE)

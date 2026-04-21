@@ -922,26 +922,31 @@ endif # TILES
 
 ifeq ($(SOUND), 1)
   ifeq ($(SDL3), 1)
-    $(error SDL3_mixer support is not yet implemented. Use SOUND=0 with SDL3=1)
-  endif
-  ifeq ($(NATIVE),osx)
-    ifndef FRAMEWORK # libsdl build
-      ifeq ($(MACPORTS), 1)
-        LDFLAGS += -lSDL2_mixer -lvorbisfile -lvorbis -logg
-      else # homebrew
-        CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags SDL2_mixer))
-        LDFLAGS += $(shell $(PKG_CONFIG) --libs SDL2_mixer)
-        LDFLAGS += -lvorbisfile -lvorbis -logg
-      endif
+    CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags sdl3-mixer))
+    LDFLAGS += $(shell $(PKG_CONFIG) --libs sdl3-mixer)
+    ifneq ($(NATIVE),osx)
+      LDFLAGS += -lpthread
     endif
-  else # not osx
-    CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags SDL2_mixer))
-    LDFLAGS += $(shell $(PKG_CONFIG) --libs SDL2_mixer)
-    LDFLAGS += -lpthread
-  endif
+  else
+    ifeq ($(NATIVE),osx)
+      ifndef FRAMEWORK # libsdl build
+        ifeq ($(MACPORTS), 1)
+          LDFLAGS += -lSDL2_mixer -lvorbisfile -lvorbis -logg
+        else # homebrew
+          CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags SDL2_mixer))
+          LDFLAGS += $(shell $(PKG_CONFIG) --libs SDL2_mixer)
+          LDFLAGS += -lvorbisfile -lvorbis -logg
+        endif
+      endif
+    else # not osx
+      CXXFLAGS += $(subst -I,-isystem ,$(shell $(PKG_CONFIG) --cflags SDL2_mixer))
+      LDFLAGS += $(shell $(PKG_CONFIG) --libs SDL2_mixer)
+      LDFLAGS += -lpthread
+    endif
 
-  ifeq ($(MSYS2),1)
-    LDFLAGS += -lmpg123 -lshlwapi -lvorbisfile -lvorbis -logg -lflac
+    ifeq ($(MSYS2),1)
+      LDFLAGS += -lmpg123 -lshlwapi -lvorbisfile -lvorbis -logg -lflac
+    endif
   endif
 
   CXXFLAGS += -DSDL_SOUND
