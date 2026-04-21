@@ -21,8 +21,12 @@
       "description": "Build against SDL3 instead of SDL2.",
       "dependencies": [
         "sdl3",
-        { "name": "sdl3-image", "features": [ "libjpeg-turbo" ] },
-        "sdl3-ttf"
+        { "name": "sdl3-image", "features": [ "jpeg" ] },
+        "sdl3-ttf",
+        { "name": "sdl3-mixer",
+          "features": [ "libflac", "mpg123", "wavpack", "libvorbis" ],
+          "default-features": false
+        }
       ]
     }
   },

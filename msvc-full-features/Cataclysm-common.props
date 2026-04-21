@@ -128,6 +128,7 @@
         out123.lib;
         pdcurses.lib;
         SDL3_image-static$(VcpkgLibSuffix).lib;
+        SDL3_mixer-static$(VcpkgLibSuffix).lib;
         SDL3_ttf$(VcpkgLibSuffix).lib;
         SDL3-static$(VcpkgLibSuffix).lib;
         syn123.lib;
