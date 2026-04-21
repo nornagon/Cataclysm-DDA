@@ -72,6 +72,9 @@
 #include "sdl_wrappers.h"
 #include "sdl_font.h"
 #include "sdl_gamepad.h"
+#if defined(SDL_SOUND)
+#include "sound_backend.h"
+#endif
 #include "sdlsound.h"
 #include "string_formatter.h"
 #include "uistate.h"
@@ -577,6 +580,10 @@ void refresh_display()
     if( test_mode ) {
         return;
     }
+
+#if defined(SDL_SOUND)
+    sound_backend::poll();
+#endif
 
     // Select default target (the window), copy rendered buffer
     // there, present it, select the buffer as target again.
