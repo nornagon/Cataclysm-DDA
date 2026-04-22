@@ -895,7 +895,7 @@ bool ImGui::CloseButton(ImGuiID id, const ImVec2& pos)
     float cross_extent = g.FontSize * 0.5f * 0.7071f - 1.0f;
 // START CDDA PATCH #65709
 #ifdef IMTUI
-    window->DrawList->AddText(center + ImVec2(-2.0,-cross_extent), cross_col, "[X]");
+    window->DrawList->AddText(cross_center + ImVec2(-2.0,-cross_extent), cross_col, "[X]");
 #else
     window->DrawList->AddLine(cross_center + ImVec2(+cross_extent, +cross_extent), cross_center + ImVec2(-cross_extent, -cross_extent), cross_col, 1.0f);
     window->DrawList->AddLine(cross_center + ImVec2(+cross_extent, -cross_extent), cross_center + ImVec2(-cross_extent, +cross_extent), cross_col, 1.0f);
