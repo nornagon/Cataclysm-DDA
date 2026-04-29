@@ -16,6 +16,7 @@
 #include "item.h"
 #include "item_location.h"
 #include "item_pocket.h"
+#include "inventory_ui.h"
 #include "iteminfo_query.h"
 #include "itype.h"
 #include "json.h"
@@ -41,6 +42,7 @@ static const itype_id itype_medium_battery_cell( "medium_battery_cell" );
 static const itype_id itype_stanag30( "stanag30" );
 static const itype_id itype_sw_619( "sw_619" );
 static const itype_id itype_test_multimag_gun( "test_multimag_gun" );
+static const itype_id itype_test_multimag_gun_same_type( "test_multimag_gun_same_type" );
 
 static item make_loaded_glock()
 {
@@ -661,6 +663,214 @@ TEST_CASE( "reload_option::qty forces 1 for pocket-targeted (class a) reloads",
     opt.pocket_index = glock_idx;
     opt.qty( 1000 );
     CHECK( opt.qty() == 1 );
+}
+
+TEST_CASE( "get_possible_reload_targets emits per-well reload_target entries",
+           "[multimag][reload]" )
+{
+    clear_avatar();
+    Character &you = get_player_character();
+    you.wear_item( item( itype_backpack ) );
+
+    SECTION( "multi-well gun: one well entry per MAGAZINE_WELL plus loaded-mag entry" ) {
+        item gun = make_dual_well_gun();
+        item_location gun_loc = you.i_add( gun );
+        REQUIRE( gun_loc );
+
+        const std::vector<reload_target> targets = get_possible_reload_targets( gun_loc );
+        std::set<int> well_indices;
+        int loaded_mag_count = 0;
+        for( const reload_target &rt : targets ) {
+            if( rt.kind == reload_target::kind::well && rt.owner == gun_loc ) {
+                well_indices.insert( rt.pocket_index );
+            } else if( rt.kind == reload_target::kind::loaded_mag && rt.owner == gun_loc ) {
+                loaded_mag_count++;
+            }
+        }
+        // Both wells appear with their actual contents indices, and each
+        // loaded magazine produces its own loaded-mag entry.
+        CHECK( well_indices.size() == 2 );
+        CHECK( loaded_mag_count == 2 );
+    }
+
+    SECTION( "integral-mag gun emits a fallback loaded-mag entry on the gun itself" ) {
+        item revolver( itype_sw_619 );
+        item_location revolver_loc = you.i_add( revolver );
+        REQUIRE( revolver_loc );
+
+        const std::vector<reload_target> targets = get_possible_reload_targets( revolver_loc );
+        bool found_fallback = false;
+        for( const reload_target &rt : targets ) {
+            if( rt.kind == reload_target::kind::loaded_mag && rt.target == revolver_loc &&
+                rt.pocket_index < 0 ) {
+                found_fallback = true;
+            }
+        }
+        CHECK( found_fallback );
+    }
+}
+
+TEST_CASE( "find_matching_reload_target routes ammo to the correct well",
+           "[multimag][reload]" )
+{
+    clear_avatar();
+    Character &you = get_player_character();
+    you.wear_item( item( itype_backpack ) );
+
+    item gun( itype_test_multimag_gun );
+    item_location gun_loc = you.i_add( gun );
+    REQUIRE( gun_loc );
+
+    const std::vector<reload_target> targets = get_possible_reload_targets( gun_loc );
+
+    // Find each well's contents index in gun_loc.
+    int glock_well_idx = -1;
+    int stanag_well_idx = -1;
+    {
+        int idx = 0;
+        for( const item_pocket *p : gun_loc->get_pockets( []( const item_pocket & ) {
+        return true;
+    } ) ) {
+            if( p->is_type( pocket_type::MAGAZINE_WELL ) ) {
+                if( glock_well_idx < 0 ) {
+                    glock_well_idx = idx;
+                } else if( stanag_well_idx < 0 ) {
+                    stanag_well_idx = idx;
+                }
+            }
+            ++idx;
+        }
+    }
+    REQUIRE( glock_well_idx >= 0 );
+    REQUIRE( stanag_well_idx >= 0 );
+
+    SECTION( "glock magazine routes to the glockmag-restricted well" ) {
+        item glock_mag( itype_glockmag );
+        glock_mag.put_in( item( itype_9mm, calendar::turn, 15 ), pocket_type::MAGAZINE );
+        item_location glock_loc = you.i_add( glock_mag );
+        REQUIRE( glock_loc );
+
+        const reload_target *match = find_matching_reload_target( targets, glock_loc );
+        REQUIRE( match != nullptr );
+        CHECK( match->kind == reload_target::kind::well );
+        CHECK( match->pocket_index == glock_well_idx );
+    }
+
+    SECTION( "stanag magazine routes to the stanag30-restricted well" ) {
+        item stanag_mag( itype_stanag30 );
+        stanag_mag.put_in( item( itype_556, calendar::turn, 30 ), pocket_type::MAGAZINE );
+        item_location stanag_loc = you.i_add( stanag_mag );
+        REQUIRE( stanag_loc );
+
+        const reload_target *match = find_matching_reload_target( targets, stanag_loc );
+        REQUIRE( match != nullptr );
+        CHECK( match->kind == reload_target::kind::well );
+        CHECK( match->pocket_index == stanag_well_idx );
+    }
+
+    SECTION( "same-type dual-well: find_all_matching emits one entry per accepting well" ) {
+        item same_type_gun( itype_test_multimag_gun_same_type );
+        item_location same_loc = you.i_add( same_type_gun );
+        REQUIRE( same_loc );
+        const std::vector<reload_target> same_targets = get_possible_reload_targets( same_loc );
+
+        item glock_mag( itype_glockmag );
+        glock_mag.put_in( item( itype_9mm, calendar::turn, 15 ), pocket_type::MAGAZINE );
+        item_location glock_loc = you.i_add( glock_mag );
+        REQUIRE( glock_loc );
+
+        const std::vector<const reload_target *> matches =
+            find_all_matching_reload_targets( same_targets, glock_loc );
+        REQUIRE( matches.size() == 2 );
+        // Class-(a) well entries with distinct pocket_index for disambiguation.
+        std::set<int> seen_pocket_indices;
+        for( const reload_target *rt : matches ) {
+            CHECK( rt->kind == reload_target::kind::well );
+            seen_pocket_indices.insert( rt->pocket_index );
+        }
+        CHECK( seen_pocket_indices.size() == 2 );
+    }
+
+    SECTION( "same-type loaded mags: loose ammo matches every loaded mag for class-(b) top-up" ) {
+        // Both wells loaded with glockmag; one half-full, one nearly empty.
+        // Direct-insert into each well by walking pockets; put_in finds only
+        // the first matching pocket and would route both magazines into well
+        // 1 here.
+        item gun_two( itype_test_multimag_gun_same_type );
+        item glock_a( itype_glockmag );
+        glock_a.put_in( item( itype_9mm, calendar::turn, 5 ), pocket_type::MAGAZINE );
+        item glock_b( itype_glockmag );
+        glock_b.put_in( item( itype_9mm, calendar::turn, 1 ), pocket_type::MAGAZINE );
+        std::vector<item_pocket *> wells;
+        for( item_pocket *p : gun_two.get_pockets( []( const item_pocket & pp ) {
+        return pp.is_type( pocket_type::MAGAZINE_WELL );
+        } ) ) {
+            wells.push_back( p );
+        }
+        REQUIRE( wells.size() == 2 );
+        REQUIRE( wells[0]->insert_item( glock_a ).success() );
+        REQUIRE( wells[1]->insert_item( glock_b ).success() );
+        REQUIRE( gun_two.magazines_current().size() == 2 );
+
+        item_location two_loc = you.i_add( gun_two );
+        REQUIRE( two_loc );
+        REQUIRE( two_loc->magazines_current().size() == 2 );
+
+        const std::vector<reload_target> two_targets = get_possible_reload_targets( two_loc );
+
+        item loose_9mm( itype_9mm, calendar::turn, 30 );
+        item_location loose_loc = you.i_add( loose_9mm );
+        REQUIRE( loose_loc );
+
+        const std::vector<const reload_target *> matches =
+            find_all_matching_reload_targets( two_targets, loose_loc );
+        // Both loaded magazines accept loose 9mm; the helper must surface
+        // both so the disambiguation menu can offer a real choice.
+        int loaded_mag_matches = 0;
+        std::vector<int> loaded_remaining;
+        for( const reload_target *rt : matches ) {
+            if( rt->kind == reload_target::kind::loaded_mag ) {
+                loaded_mag_matches++;
+                loaded_remaining.push_back( rt->target->ammo_remaining() );
+            }
+        }
+        CHECK( loaded_mag_matches == 2 );
+
+        // Picking the less-full mag must let qty() refill toward its own
+        // remaining capacity, not stay capped by the more-full mag.
+        const reload_target *small_mag_target = nullptr;
+        for( const reload_target *rt : matches ) {
+            if( rt->kind == reload_target::kind::loaded_mag &&
+                rt->target->ammo_remaining() == 1 ) {
+                small_mag_target = rt;
+                break;
+            }
+        }
+        REQUIRE( small_mag_target != nullptr );
+        item::reload_option opt( &you, small_mag_target->target, loose_loc,
+                                 small_mag_target->pocket_index );
+        // glockmag capacity 15, mag has 1 round, room for 14.
+        CHECK( opt.qty() == 14 );
+
+        // Player picked a partial count below either mag's remaining capacity;
+        // disambiguation must preserve it.
+        item::reload_option opt_partial( &you, small_mag_target->target, loose_loc,
+                                         small_mag_target->pocket_index );
+        opt_partial.qty( 3 );
+        CHECK( opt_partial.qty() == 3 );
+    }
+
+    SECTION( "magazine compatible with no well returns nullptr" ) {
+        // 38_special is loose ammo for the integral revolver fixture and is
+        // not compatible with either of test_multimag_gun's wells (glockmag
+        // / stanag30 restrictions). Loose ammo cannot reload a well.
+        item loose( itype_38_special, calendar::turn, 7 );
+        item_location loose_loc = you.i_add( loose );
+        REQUIRE( loose_loc );
+
+        const reload_target *match = find_matching_reload_target( targets, loose_loc );
+        CHECK( match == nullptr );
+    }
 }
 
 TEST_CASE( "Character::unload ejects every loaded magazine", "[multimag][unload]" )
