@@ -2808,6 +2808,30 @@ class item : public visitable
         itype_id magazine_default( bool conversion = false ) const;
 
         /**
+         * Default magazine of every MAGAZINE_WELL pocket directly on this item.
+         * Wells with no default contribute NULL_ID. Does not walk into gunmods'
+         * own internal pockets; spawn-time and ambiguity checks operate on the
+         * host's own wells (mod-supplied wells are folded in via
+         * update_modified_pockets).
+         */
+        std::vector<itype_id> magazines_default() const;
+
+        /**
+         * Every MAGAZINE_WELL pocket directly on this item. Same scope rule as
+         * magazines_default().
+         */
+        std::vector<item_pocket *> all_magazine_well_pockets();
+        std::vector<const item_pocket *> all_magazine_well_pockets() const;
+
+        /**
+         * Spawn-time dressing for every MAGAZINE_WELL on this item.
+         * Empty wells get the default magazine when insert_default_mag is true;
+         * present-but-empty magazines get default ammo when fill_with_default_ammo
+         * is true; loaded magazines are untouched.
+         */
+        void dress_magazine_wells( bool insert_default_mag, bool fill_with_default_ammo );
+
+        /**
          * Get compatible magazines (if any) for this item.
          * @return magazine compatibility which is always empty if item has integral magazine.
          * @see item::magazine_integral.

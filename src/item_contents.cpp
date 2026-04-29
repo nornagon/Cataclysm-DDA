@@ -2203,6 +2203,17 @@ itype_id item_contents::magazine_default() const
     return itype_id::NULL_ID();
 }
 
+std::vector<itype_id> item_contents::magazines_default() const
+{
+    std::vector<itype_id> result;
+    for( const item_pocket &pocket : contents ) {
+        if( pocket.is_type( pocket_type::MAGAZINE_WELL ) ) {
+            result.push_back( pocket.magazine_default() );
+        }
+    }
+    return result;
+}
+
 units::mass item_contents::total_container_weight_capacity( const bool unrestricted_pockets_only )
 const
 {

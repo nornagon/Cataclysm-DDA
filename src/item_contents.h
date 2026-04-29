@@ -189,6 +189,11 @@ class item_contents
          */
         itype_id magazine_default() const;
         /**
+         * Default magazine of every directly-owned MAGAZINE_WELL pocket.
+         * Does NOT walk into MOD pockets; use item::magazines_default() for that.
+         */
+        std::vector<itype_id> magazines_default() const;
+        /**
          * This function is to aid migration to using nested containers.
          * The call sites of this function need to be updated to search the
          * pockets of the item, or not assume there is only one pocket or item.

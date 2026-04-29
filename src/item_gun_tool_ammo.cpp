@@ -2069,6 +2069,53 @@ std::set<itype_id> item::magazine_compatible() const
     return contents.magazine_compatible();
 }
 
+std::vector<itype_id> item::magazines_default() const
+{
+    return contents.magazines_default();
+}
+
+std::vector<item_pocket *> item::all_magazine_well_pockets()
+{
+    return get_pockets(
+    []( const item_pocket & p ) {
+        return p.is_type( pocket_type::MAGAZINE_WELL );
+    } );
+}
+
+std::vector<const item_pocket *> item::all_magazine_well_pockets() const
+{
+    return get_pockets(
+    []( const item_pocket & p ) {
+        return p.is_type( pocket_type::MAGAZINE_WELL );
+    } );
+}
+
+void item::dress_magazine_wells( bool insert_default_mag, bool fill_with_default_ammo )
+{
+    for( item_pocket *well : all_magazine_well_pockets() ) {
+        item *current_mag = well->magazine_current();
+        if( current_mag != nullptr ) {
+            if( fill_with_default_ammo && current_mag->ammo_remaining() == 0 &&
+                !current_mag->ammo_default().is_null() ) {
+                current_mag->ammo_set( current_mag->ammo_default() );
+            }
+            continue;
+        }
+        if( !insert_default_mag ) {
+            continue;
+        }
+        const itype_id mag_id = well->magazine_default();
+        if( mag_id.is_null() ) {
+            continue;
+        }
+        item mag( mag_id, birthday() );
+        if( fill_with_default_ammo && !mag.ammo_default().is_null() ) {
+            mag.ammo_set( mag.ammo_default() );
+        }
+        well->insert_item( mag );
+    }
+}
+
 item *item::magazine_current()
 {
     return contents.magazine_current();

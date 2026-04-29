@@ -6760,12 +6760,23 @@ std::vector<item *> map::place_items(
     }
     for( item *e : res ) {
         if( e->is_tool() || e->is_gun() || e->is_magazine() ) {
-            if( rng( 0, 99 ) < magazine && e->magazine_default() && !e->magazine_integral() &&
-                !e->magazine_current() ) {
-                e->put_in( item( e->magazine_default(), e->birthday() ), pocket_type::MAGAZINE_WELL );
+            const std::vector<itype_id> well_defaults = e->magazines_default();
+            const bool is_multi_well = well_defaults.size() > 1;
+            bool roll_mag = rng( 0, 99 ) < magazine && !e->magazine_integral();
+            if( !is_multi_well ) {
+                roll_mag = roll_mag && !e->magazine_current();
             }
-            if( rng( 0, 99 ) < ammo && e->ammo_default() && e->ammo_remaining( ) == 0 ) {
-                e->ammo_set( e->ammo_default() );
+            const bool roll_ammo = rng( 0, 99 ) < ammo;
+            // TODO(multimag): per-well magazine-chance / ammo-chance keys.
+            if( is_multi_well ) {
+                e->dress_magazine_wells( roll_mag, roll_ammo );
+            } else {
+                if( roll_mag && e->magazine_default() ) {
+                    e->put_in( item( e->magazine_default(), e->birthday() ), pocket_type::MAGAZINE_WELL );
+                }
+                if( roll_ammo && e->ammo_default() && e->ammo_remaining( ) == 0 ) {
+                    e->ammo_set( e->ammo_default() );
+                }
             }
         }
 

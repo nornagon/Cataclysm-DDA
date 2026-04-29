@@ -1,10 +1,10 @@
 #include <algorithm>
 #include <cstddef>
 #include <functional>
-#include <list>
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "activity_actor_definitions.h"
@@ -14,6 +14,7 @@
 #include "coordinates.h"
 #include "debug.h"
 #include "item.h"
+#include "item_group.h"
 #include "item_location.h"
 #include "item_pocket.h"
 #include "inventory_ui.h"
@@ -30,6 +31,8 @@
 #include "ret_val.h"
 #include "type_id.h"
 #include "visitable.h"
+
+static const item_group_id Item_spawn_data_test_multimag_full_load( "test_multimag_full_load" );
 
 static const itype_id itype_38_special( "38_special" );
 static const itype_id itype_556( "556" );
@@ -184,7 +187,7 @@ TEST_CASE( "dual_well_magazine_operations", "[multimag]" )
     }
 }
 
-TEST_CASE( "rate_action_unload across wells", "[multimag][hint]" )
+TEST_CASE( "rate_action_unload_across_wells", "[multimag][hint]" )
 {
     clear_avatar();
     Character &you = get_player_character();
@@ -208,7 +211,7 @@ TEST_CASE( "rate_action_unload across wells", "[multimag][hint]" )
     }
 }
 
-TEST_CASE( "display_name multi-well per-well counts", "[multimag][display]" )
+TEST_CASE( "display_name_multi_well_per_well_counts", "[multimag][display]" )
 {
     SECTION( "single loaded well prints (amount/max ammo) once" ) {
         item gun = make_loaded_glock();
@@ -230,7 +233,7 @@ TEST_CASE( "display_name multi-well per-well counts", "[multimag][display]" )
         CAPTURE( inner );
         CHECK( inner.find( "15/15" ) != std::string::npos );
         CHECK( inner.find( "30/30" ) != std::string::npos );
-        CHECK( inner.find( "," ) != std::string::npos );
+        CHECK( inner.find( ',' ) != std::string::npos );
     }
 
     SECTION( "one well loaded out of two still emits per-well segments" ) {
@@ -277,7 +280,7 @@ TEST_CASE( "display_name multi-well per-well counts", "[multimag][display]" )
     }
 }
 
-TEST_CASE( "iteminfo Magazine label pluralization", "[multimag][display]" )
+TEST_CASE( "iteminfo_magazine_label_pluralization", "[multimag][display]" )
 {
     auto iteminfo_for = []( const item & it ) {
         std::vector<iteminfo> info_v;
@@ -315,7 +318,7 @@ TEST_CASE( "iteminfo Magazine label pluralization", "[multimag][display]" )
         if( glock_pos != std::string::npos && stanag_pos != std::string::npos ) {
             const size_t lo = std::min( glock_pos, stanag_pos );
             const size_t hi = std::max( glock_pos, stanag_pos );
-            CHECK( info.substr( lo, hi - lo ).find( "," ) != std::string::npos );
+            CHECK( info.substr( lo, hi - lo ).find( ',' ) != std::string::npos );
         }
     }
 
@@ -330,7 +333,7 @@ TEST_CASE( "iteminfo Magazine label pluralization", "[multimag][display]" )
     }
 }
 
-TEST_CASE( "per-well ammo_remaining / ammo_capacity / remaining_ammo_capacity overloads",
+TEST_CASE( "per_well_ammo_remaining_capacity_overloads",
            "[multimag][capacity]" )
 {
     item gun = make_dual_well_gun();
@@ -392,7 +395,7 @@ TEST_CASE( "per-well ammo_remaining / ammo_capacity / remaining_ammo_capacity ov
     }
 }
 
-TEST_CASE( "Character::list_ammo per_well_targets flag", "[multimag][reload]" )
+TEST_CASE( "character_list_ammo_per_well_targets_flag", "[multimag][reload]" )
 {
     clear_avatar();
     Character &you = get_player_character();
@@ -550,7 +553,7 @@ TEST_CASE( "Character::list_ammo per_well_targets flag", "[multimag][reload]" )
     }
 }
 
-TEST_CASE( "item::reload with pocket_index targets a specific well", "[multimag][reload]" )
+TEST_CASE( "item_reload_with_pocket_index_targets_specific_well", "[multimag][reload]" )
 {
     clear_avatar();
     Character &you = get_player_character();
@@ -621,7 +624,7 @@ TEST_CASE( "item::reload with pocket_index targets a specific well", "[multimag]
     }
 }
 
-TEST_CASE( "reload_option::qty forces 1 for pocket-targeted (class a) reloads",
+TEST_CASE( "reload_option_qty_forces_1_for_pocket_targeted_reloads",
            "[multimag][reload]" )
 {
     clear_avatar();
@@ -665,7 +668,7 @@ TEST_CASE( "reload_option::qty forces 1 for pocket-targeted (class a) reloads",
     CHECK( opt.qty() == 1 );
 }
 
-TEST_CASE( "get_possible_reload_targets emits per-well reload_target entries",
+TEST_CASE( "get_possible_reload_targets_emits_per_well_entries",
            "[multimag][reload]" )
 {
     clear_avatar();
@@ -710,7 +713,7 @@ TEST_CASE( "get_possible_reload_targets emits per-well reload_target entries",
     }
 }
 
-TEST_CASE( "find_matching_reload_target routes ammo to the correct well",
+TEST_CASE( "find_matching_reload_target_routes_ammo_to_correct_well",
            "[multimag][reload]" )
 {
     clear_avatar();
@@ -873,7 +876,7 @@ TEST_CASE( "find_matching_reload_target routes ammo to the correct well",
     }
 }
 
-TEST_CASE( "Character::unload ejects every loaded magazine", "[multimag][unload]" )
+TEST_CASE( "character_unload_ejects_every_loaded_magazine", "[multimag][unload]" )
 {
     clear_avatar();
     clear_map();
@@ -907,7 +910,7 @@ TEST_CASE( "Character::unload ejects every loaded magazine", "[multimag][unload]
     CHECK( found_stanag );
 }
 
-TEST_CASE( "same-type dual-well: targeted reload replaces a specific well",
+TEST_CASE( "same_type_dual_well_targeted_reload_replaces_specific_well",
            "[multimag][reload]" )
 {
     clear_avatar();
@@ -964,7 +967,7 @@ TEST_CASE( "same-type dual-well: targeted reload replaces a specific well",
     CHECK( wells_after[1]->magazine_current()->ammo_remaining() == 15 );
 }
 
-TEST_CASE( "reload_activity_actor serializes pocket_index",
+TEST_CASE( "reload_activity_actor_serializes_pocket_index",
            "[multimag][reload][serialize]" )
 {
     clear_avatar();
@@ -990,7 +993,7 @@ TEST_CASE( "reload_activity_actor serializes pocket_index",
     CHECK( serialized.find( "\"pocket_index\":0" ) != std::string::npos );
 }
 
-TEST_CASE( "wield-collision sees mags from every well, not just the first",
+TEST_CASE( "wield_collision_sees_mags_from_every_well",
            "[multimag][wield]" )
 {
     item gun = make_dual_well_gun();
@@ -1002,4 +1005,98 @@ TEST_CASE( "wield-collision sees mags from every well, not just the first",
     }
     CHECK( mag_types.count( itype_glockmag ) == 1 );
     CHECK( mag_types.count( itype_stanag30 ) == 1 );
+}
+
+TEST_CASE( "item_group_spawn_fills_every_well",
+           "[multimag][spawn]" )
+{
+    const item_group::ItemList items = item_group::items_from(
+                                           Item_spawn_data_test_multimag_full_load );
+    REQUIRE( items.size() == 1 );
+    const item &gun = items[0];
+    REQUIRE( gun.typeId() == itype_test_multimag_gun );
+
+    const std::vector<const item *> mags = gun.magazines_current();
+    CHECK( mags.size() == 2 );
+
+    std::set<itype_id> mag_types;
+    for( const item *m : mags ) {
+        mag_types.insert( m->typeId() );
+    }
+    CHECK( mag_types.count( itype_glockmag ) == 1 );
+    CHECK( mag_types.count( itype_stanag30 ) == 1 );
+
+    for( const item *m : mags ) {
+        CHECK( m->ammo_remaining() > 0 );
+    }
+}
+
+TEST_CASE( "item_wide_charges_on_multi_well_rejected",
+           "[multimag][spawn]" )
+{
+    Item_modifier modifier;
+    modifier.charges = { 20, 20 };
+    item gun( itype_test_multimag_gun );
+
+    const std::string dmsg = capture_debugmsg_during( [&modifier, &gun]() {
+        modifier.modify( gun, "test_multimag_charges_ambiguous" );
+    } );
+
+    CHECK( dmsg.find( "ambiguous" ) != std::string::npos );
+    CHECK( gun.typeId() == itype_test_multimag_gun );
+    CHECK( gun.magazines_current().empty() );
+    CHECK( gun.ammo_remaining() == 0 );
+}
+
+TEST_CASE( "item_magazines_default_one_entry_per_well",
+           "[multimag][spawn]" )
+{
+    item gun( itype_test_multimag_gun );
+    const std::vector<itype_id> defaults = gun.magazines_default();
+    REQUIRE( defaults.size() == 2 );
+
+    std::set<itype_id> uniq( defaults.begin(), defaults.end() );
+    CHECK( uniq.count( itype_glockmag ) == 1 );
+    CHECK( uniq.count( itype_stanag30 ) == 1 );
+}
+
+TEST_CASE( "dress_magazine_wells_fills_empty_siblings",
+           "[multimag][spawn]" )
+{
+    item gun( itype_test_multimag_gun );
+    // Pre-load only the glock well.
+    item glock_mag( itype_glockmag );
+    glock_mag.ammo_set( itype_9mm, 15 );
+    REQUIRE( gun.put_in( glock_mag, pocket_type::MAGAZINE_WELL ).success() );
+    REQUIRE( gun.magazines_current().size() == 1 );
+
+    gun.dress_magazine_wells( /*insert_default_mag=*/true, /*fill_with_default_ammo=*/true );
+
+    const std::vector<item *> mags = gun.magazines_current();
+    REQUIRE( mags.size() == 2 );
+    std::set<itype_id> mag_types;
+    for( const item *m : mags ) {
+        mag_types.insert( m->typeId() );
+    }
+    CHECK( mag_types.count( itype_glockmag ) == 1 );
+    CHECK( mag_types.count( itype_stanag30 ) == 1 );
+    for( const item *m : mags ) {
+        CHECK( m->ammo_remaining() > 0 );
+    }
+}
+
+TEST_CASE( "dress_magazine_wells_tops_up_empty_mag",
+           "[multimag][spawn]" )
+{
+    item gun( itype_test_multimag_gun );
+    item empty_mag( itype_glockmag );
+    REQUIRE( empty_mag.ammo_remaining() == 0 );
+    REQUIRE( gun.put_in( empty_mag, pocket_type::MAGAZINE_WELL ).success() );
+
+    gun.dress_magazine_wells( /*insert_default_mag=*/false, /*fill_with_default_ammo=*/true );
+
+    const std::vector<item *> mags = gun.magazines_current();
+    REQUIRE( mags.size() == 1 );
+    CHECK( mags[0]->typeId() == itype_glockmag );
+    CHECK( mags[0]->ammo_remaining() > 0 );
 }
