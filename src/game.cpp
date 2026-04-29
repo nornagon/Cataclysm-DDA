@@ -6995,6 +6995,9 @@ void game::butcher( const std::optional<tripoint_bub_ms> &p )
 static item::reload_option favorite_ammo_or_select( avatar &u, item_location &loc, bool empty,
         bool prompt )
 {
+    // TODO(multimag): favorite-ammo fast path uses list_ammo() with the
+    // legacy first-compatible-well fallback. A second well that accepts the
+    // same ammo type is not offered without an explicit menu step.
     if( u.ammo_location ) {
         std::vector<item::reload_option> ammo_list;
         if( u.list_ammo( loc, ammo_list, false ) ) {
