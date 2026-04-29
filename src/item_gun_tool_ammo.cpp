@@ -36,6 +36,7 @@
 #include "explosion.h"
 #include "faction.h"
 #include "flag.h"
+#include "flat_set.h"
 #include "game.h"
 #include "game_constants.h"
 #include "generic_factory.h"
@@ -971,13 +972,41 @@ bool item::can_reload_with( const item &ammo, bool now ) const
     }
 
     if( now && ammo.is_magazine() && !ammo.empty() ) {
+        const ammotype loaded_at = ammo.contents.first_ammo().ammo_type();
         if( is_tool() ) {
             // Dirty hack because "ammo" on tools is actually completely separate thing from "ammo" on guns and "ammo_types()" works only for guns
-            if( !type->tool->ammo_id.count( ammo.contents.first_ammo().ammo_type() ) ) {
+            if( !type->tool->ammo_id.count( loaded_at ) ) {
                 return false;
             }
-        } else {
-            if( !ammo_types().count( ammo.contents.first_ammo().ammo_type() ) ) {
+        } else if( !ammo_types().count( loaded_at ) ) {
+            // Sibling MAGAZINE_WELLs may take auxiliary ammotypes outside the
+            // gun's primary `ammo` field. Accept if any well's allowed mags
+            // have a MAGAZINE pocket restricted to this ammo type.
+            bool well_match = false;
+            for( const item_pocket *p : contents.get_all_reloadable_pockets() ) {
+                if( !p->is_type( pocket_type::MAGAZINE_WELL ) ) {
+                    continue;
+                }
+                for( const itype_id &mag_id : p->item_type_restrictions() ) {
+                    if( !mag_id->magazine ) {
+                        continue;
+                    }
+                    for( const pocket_data &mp : mag_id->pockets ) {
+                        if( mp.type == pocket_type::MAGAZINE &&
+                            mp.ammo_restriction.count( loaded_at ) ) {
+                            well_match = true;
+                            break;
+                        }
+                    }
+                    if( well_match ) {
+                        break;
+                    }
+                }
+                if( well_match ) {
+                    break;
+                }
+            }
+            if( !well_match ) {
                 return false;
             }
         }
@@ -1295,9 +1324,9 @@ int item::ammo_remaining( const map &here, const std::set<ammotype> &ammo, const
 
     int ret = 0;
 
-    // Magazine in the item
-    const item *mag = magazine_current();
-    if( mag ) {
+    // Sum ammo across every loaded MAGAZINE_WELL pocket.
+    // TODO(multimag): aggregate; per-well callers use the indexed overload.
+    for( const item *mag : magazines_current() ) {
         ret += mag->ammo_remaining( );
     }
 
@@ -1328,7 +1357,7 @@ int item::ammo_remaining( const map &here, const std::set<ammotype> &ammo, const
     }
 
     // Handle non-magazines with ammo_restriction in a CONTAINER type pocket (like quivers)
-    if( !( mag || is_magazine() || ammo.empty() ) ) {
+    if( magazines_current().empty() && !is_magazine() && !ammo.empty() ) {
         for( const item *e : contents.all_items_top( pocket_type::CONTAINER ) ) {
             if( e->is_ammo() && ammo.find( e->ammo_type() ) != ammo.end() ) {
                 ret += e->charges;
@@ -1453,6 +1482,12 @@ int item::remaining_ammo_capacity() const
         return 0;
     }
 
+    // First-loaded-mag fallback; per-pocket callers use the dedicated overload.
+    if( const item *mag = magazine_current() ) {
+        return mag->remaining_ammo_capacity();
+    }
+
+    // Integral mag: ammo_remaining() excludes MAGAZINE_WELL here.
     const itype *loaded_ammo = ammo_data();
     if( loaded_ammo == nullptr ) {
         loaded_ammo = item::find_type( ammo_default() );
@@ -3269,6 +3304,8 @@ bool item::is_reloadable() const
                 return true;
             }
         } else if( pocket->is_type( pocket_type::MAGAZINE ) ) {
+            // Parent aggregate stays correct when the integral mag is full
+            // of casings (not counted against ammo_remaining()).
             if( remaining_ammo_capacity() > 0 ) {
                 return true;
             }

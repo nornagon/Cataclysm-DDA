@@ -7033,6 +7033,9 @@ void game::reload( item_location &loc, bool prompt, bool empty )
 
     switch( u.rate_action_reload( *loc ) ) {
         case hint_rating::iffy:
+            // TODO(multimag): remaining_ammo_capacity() is a first-loaded-mag
+            // fallback; multi-well items will report "already fully loaded"
+            // when only the first well is full.
             if( ( loc->is_ammo_container() || loc->is_magazine() ) && loc->ammo_remaining( ) > 0 &&
                 loc->remaining_ammo_capacity() == 0 ) {
                 add_msg( m_info, _( "The %s is already fully loaded!" ), loc->tname() );
@@ -7172,6 +7175,8 @@ void game::reload_weapon( bool try_everything )
             return a->is_gun();
         }
         // Finally sort by speed to reload.
+        // TODO(multimag): aggregate remaining_ammo_capacity() falls back to
+        // the first MAGAZINE_WELL; multi-well items rank by first-well only.
         return ( a->get_reload_time() * a->remaining_ammo_capacity() ) <
                ( b->get_reload_time() * b->remaining_ammo_capacity() );
     } );

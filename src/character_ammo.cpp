@@ -217,13 +217,14 @@ hint_rating Character::rate_action_unload( const item &it ) const
         return hint_rating::cant;
     }
 
-    if( it.magazine_current() ) {
+    if( !it.magazines_current().empty() ) {
         return hint_rating::good;
     }
 
     for( const item *e : it.gunmods() ) {
         if( ( e->is_gun() && !e->has_flag( flag_NO_UNLOAD ) &&
-              ( e->magazine_current() || e->ammo_remaining( ) > 0 || e->casings_count() > 0 ) ) ||
+              ( !e->magazines_current().empty() || e->ammo_remaining( ) > 0 ||
+                e->casings_count() > 0 ) ) ||
             ( e->has_flag( flag_BRASS_CATCHER ) && !e->is_container_empty() ) ) {
             return hint_rating::good;
         }

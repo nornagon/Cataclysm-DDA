@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <functional>
 #include <list>
-#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -179,7 +178,7 @@ class item_contents
         std::vector<item *> cables();
         std::vector<const item *> cables() const;
 
-        void update_modified_pockets( const std::optional<const pocket_data *> &mag_or_mag_well,
+        void update_modified_pockets( std::vector<const pocket_data *> mag_or_mag_wells,
                                       std::vector<const pocket_data *> container_pockets );
         // all magazines compatible with any pockets.
         // this only checks MAGAZINE_WELL
