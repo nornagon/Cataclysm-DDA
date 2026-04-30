@@ -2967,7 +2967,7 @@ void veh_interact::count_durability()
         total_durability_color = c_light_green;
 
     } else if( pct < 33 ) {
-        total_durability_text = _( "dented" );
+        total_durability_text = pgettext( "adjective", "dented" );
         total_durability_color = c_yellow;
 
     } else if( pct < 66 ) {
