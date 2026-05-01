@@ -4499,6 +4499,12 @@ bool Character::consume_charges( item &used, int qty )
         return false;
     }
 
+    if( used.uses_firing_requirements() ) {
+        debugmsg( "consume_charges called on multimag tool %s; caller must use "
+                  "consume_tool_uses instead", used.tname() );
+        return false;
+    }
+
     // Consume comestibles destroying them if no charges remain
     if( used.is_food() || used.is_medication() ) {
         used.charges -= qty;
@@ -4509,8 +4515,7 @@ bool Character::consume_charges( item &used, int qty )
         return false;
     }
 
-    // Tools which don't require ammo are instead destroyed
-    if( used.is_tool() && !used.ammo_required() ) {
+    if( used.is_tool() && !used.needs_charges_to_use() ) {
         if( has_item( used ) ) {
             i_rem( &used );
         } else {

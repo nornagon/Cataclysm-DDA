@@ -129,6 +129,73 @@ item &null_item_reference()
     return result;
 }
 
+// Per-mode feasibility for multimag. Local pocket stock is non-fungible
+// across pocket ids; only the external pool (cable + UPS + bionic) is
+// shared, and it's usable only by battery-flavored entries.
+static int feasible_uses( const item &host,
+                          const std::vector<pocket_consumption_entry> &entries,
+                          int requested, int external_pool )
+{
+    int n_max = INT_MAX;
+    struct battery_entry {
+        int qty;
+        int stock;
+    };
+    std::vector<battery_entry> battery;
+    for( const pocket_consumption_entry &e : entries ) {
+        const int q = host.effective_qty( e );
+        if( q <= 0 ) {
+            continue;
+        }
+        const int local = host.ammo_remaining_in_pocket( e.pocket );
+        const item_pocket *p = host.pocket_by_id( e.pocket );
+        if( host.pocket_accepts_battery( p ) ) {
+            battery.push_back( { q, local } );
+        } else {
+            n_max = std::min( n_max, local / q );
+        }
+    }
+
+    if( battery.empty() ) {
+        return std::min( requested, n_max );
+    }
+
+    // Pool need(n) = sum_{i past breakpoint} (n*qty_i - stock_i) is
+    // piecewise linear; walk breakpoints in ascending stock_i / qty_i order.
+    std::sort( battery.begin(), battery.end(),
+    []( const battery_entry & a, const battery_entry & b ) {
+        return static_cast<int64_t>( a.stock ) * b.qty <
+               static_cast<int64_t>( b.stock ) * a.qty;
+    } );
+
+    int qty_sum_past = 0;
+    int stock_sum_past = 0;
+    int n = 0;
+    bool exhausted = false;
+    for( const battery_entry &b : battery ) {
+        const int n_break = b.stock / b.qty;
+        if( qty_sum_past > 0 ) {
+            const int n_max_segment =
+                ( external_pool + stock_sum_past ) / qty_sum_past;
+            if( n_max_segment < n_break ) {
+                n = std::max( n, n_max_segment );
+                exhausted = true;
+                break;
+            }
+            n = std::max( n, n_break );
+        } else {
+            n = std::max( n, n_break );
+        }
+        qty_sum_past += b.qty;
+        stock_sum_past += b.stock;
+    }
+    if( !exhausted && qty_sum_past > 0 ) {
+        const int n_after = ( external_pool + stock_sum_past ) / qty_sum_past;
+        n = std::max( n, n_after );
+    }
+    return std::min( { requested, n_max, n } );
+}
+
 units::energy item::mod_energy( const units::energy &qty )
 {
     if( !is_vehicle_battery() ) {
@@ -1301,6 +1368,19 @@ int item::gun_range( const Character *p ) const
 
 int item::shots_remaining( const map &here, const Character *carrier ) const
 {
+    if( uses_firing_requirements() ) {
+        const gun_mode_id mode = is_gun() ? gun_get_mode_id() : gun_mode_id( "DEFAULT" );
+        const std::vector<pocket_consumption_entry> *entries =
+            type->firing_requirements.for_mode( mode );
+        if( entries == nullptr || entries->empty() ) {
+            return 0;
+        }
+        map &mut_here = const_cast<map &>( here );
+        const int pool = available_cable_charges( mut_here )
+                         + available_ups_charges( carrier )
+                         + available_bionic_charges( carrier );
+        return feasible_uses( *this, *entries, INT_MAX, pool );
+    }
     int ret = 1000; // Arbitrary large number for things that do not require ammo.
     if( ammo_required() ) {
         ret = std::min( ammo_remaining_linked( here,  carrier ) / ammo_required(), ret );
@@ -1405,9 +1485,10 @@ bool item::uses_energy() const
     if( is_vehicle_battery() ) {
         return true;
     }
-    const item *mag = magazine_current();
-    if( mag && mag->uses_energy() ) {
-        return true;
+    for( const item *mag : magazines_current() ) {
+        if( mag && mag->uses_energy() ) {
+            return true;
+        }
     }
     return has_flag( flag_USES_BIONIC_POWER ) ||
            has_flag( flag_USE_UPS ) ||
@@ -1419,8 +1500,9 @@ bool item::is_chargeable() const
     if( !uses_energy() ) {
         return false;
     }
-    // bionic power using items have ammo_capacity = player bionic power storage.  Since the items themselves aren't chargeable, auto fail unless they also have a magazine.
-    if( has_flag( flag_USES_BIONIC_POWER ) && !magazine_current() ) {
+    // Bionic-powered items have ammo_capacity tied to player bionic storage,
+    // so they can't actually receive charge unless they also carry a magazine.
+    if( has_flag( flag_USES_BIONIC_POWER ) && magazines_current().empty() ) {
         return false;
     }
     if( ammo_remaining() < ammo_capacity( ammo_battery ) ) {
@@ -1645,6 +1727,11 @@ int item::ammo_consume( int qty, map &here, const tripoint_bub_ms &pos, Characte
 {
     if( qty < 0 ) {
         debugmsg( "Cannot consume negative quantity of ammo for %s", tname() );
+        return 0;
+    }
+    if( uses_firing_requirements() ) {
+        debugmsg( "ammo_consume(%d) called on multimag item %s; caller must use "
+                  "consume_shots / consume_tool_uses instead", qty, tname() );
         return 0;
     }
     const int wanted_qty = qty;
@@ -2438,76 +2525,6 @@ int item::available_bionic_charges( const Character *carrier ) const
     }
     return units::to_kilojoule( carrier->get_power_level() );
 }
-
-namespace
-{
-// Per-mode feasibility for multimag. Local pocket stock is non-fungible
-// across pocket ids; only the external pool (cable + UPS + bionic) is
-// shared, and it's usable only by battery-flavored entries.
-int feasible_uses( const item &host,
-                   const std::vector<pocket_consumption_entry> &entries,
-                   int requested, int external_pool )
-{
-    int n_max = INT_MAX;
-    struct battery_entry {
-        int qty;
-        int stock;
-    };
-    std::vector<battery_entry> battery;
-    for( const pocket_consumption_entry &e : entries ) {
-        const int q = host.effective_qty( e );
-        if( q <= 0 ) {
-            continue;
-        }
-        const int local = host.ammo_remaining_in_pocket( e.pocket );
-        const item_pocket *p = host.pocket_by_id( e.pocket );
-        if( host.pocket_accepts_battery( p ) ) {
-            battery.push_back( { q, local } );
-        } else {
-            n_max = std::min( n_max, local / q );
-        }
-    }
-
-    if( battery.empty() ) {
-        return std::min( requested, n_max );
-    }
-
-    // Pool need(n) = sum_{i past breakpoint} (n*qty_i - stock_i) is
-    // piecewise linear; walk breakpoints in ascending stock_i / qty_i order.
-    std::sort( battery.begin(), battery.end(),
-    []( const battery_entry & a, const battery_entry & b ) {
-        return static_cast<int64_t>( a.stock ) * b.qty <
-               static_cast<int64_t>( b.stock ) * a.qty;
-    } );
-
-    int qty_sum_past = 0;
-    int stock_sum_past = 0;
-    int n = 0;
-    bool exhausted = false;
-    for( const battery_entry &b : battery ) {
-        const int n_break = b.stock / b.qty;
-        if( qty_sum_past > 0 ) {
-            const int n_max_segment =
-                ( external_pool + stock_sum_past ) / qty_sum_past;
-            if( n_max_segment < n_break ) {
-                n = std::max( n, n_max_segment );
-                exhausted = true;
-                break;
-            }
-            n = std::max( n, n_break );
-        } else {
-            n = std::max( n, n_break );
-        }
-        qty_sum_past += b.qty;
-        stock_sum_past += b.stock;
-    }
-    if( !exhausted && qty_sum_past > 0 ) {
-        const int n_after = ( external_pool + stock_sum_past ) / qty_sum_past;
-        n = std::max( n, n_after );
-    }
-    return std::min( { requested, n_max, n } );
-}
-} // namespace
 
 int item::tool_uses_remaining( map &here, const Character *carrier ) const
 {
