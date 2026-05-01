@@ -1059,14 +1059,11 @@ bool item::can_reload_with( const item &ammo, bool now ) const
 
     if( now && ammo.is_magazine() && !ammo.empty() ) {
         const ammotype loaded_at = ammo.contents.first_ammo().ammo_type();
-        if( is_tool() ) {
-            // Dirty hack because "ammo" on tools is actually completely separate thing from "ammo" on guns and "ammo_types()" works only for guns
-            if( !type->tool->ammo_id.count( loaded_at ) ) {
-                return false;
-            }
-        } else if( !ammo_types().count( loaded_at ) ) {
+        const bool tool_match = is_tool() && type->tool->ammo_id.count( loaded_at );
+        const bool gun_match = !is_tool() && ammo_types().count( loaded_at );
+        if( !tool_match && !gun_match ) {
             // Sibling MAGAZINE_WELLs may take auxiliary ammotypes outside the
-            // gun's primary `ammo` field. Accept if any well's allowed mags
+            // host's declared `ammo` field. Accept if any well's allowed mags
             // have a MAGAZINE pocket restricted to this ammo type.
             bool well_match = false;
             for( const item_pocket *p : contents.get_all_reloadable_pockets() ) {
@@ -1907,6 +1904,9 @@ units::energy item::energy_consume( units::energy qty, map *here, const tripoint
 
 int item::activation_consume( int qty, const tripoint_bub_ms &pos, Character *carrier )
 {
+    if( uses_firing_requirements() ) {
+        return consume_tool_uses( qty, get_map(), pos, carrier );
+    }
     return ammo_consume( qty * ammo_required(), pos, carrier );
 }
 
@@ -4025,6 +4025,30 @@ bool item::process_tool( Character *carrier, const tripoint_bub_ms &pos )
     // FIXME: remove this once power armors don't need to be TOOL_ARMOR anymore
     if( is_power_armor() && carrier && carrier->can_interface_armor() && carrier->has_power() ) {
         return false;
+    }
+
+    if( uses_firing_requirements() ) {
+        // Per-turn drain throttled by turns_per_charge; shut down when empty.
+        if( tool_uses_remaining( here, carrier ) == 0 ) {
+            if( carrier ) {
+                carrier->add_msg_if_player( m_info, _( "The %s ran out of charge!" ), tname() );
+            }
+            if( type->transform_into.has_value() ) {
+                deactivate( carrier );
+                return false;
+            }
+            return true;
+        }
+        const int interval = std::max( 1, type->tool->turns_per_charge );
+        if( to_turn<int>( calendar::turn ) % interval == 0 ) {
+            consume_tool_uses( 1, here, pos, carrier );
+        }
+        const int charges_used = type->tick( carrier, *this, pos );
+        const bool destroy = has_flag( flag_DESTROY_ON_CHARGE_USE );
+        if( !destroy && charges_used > 0 ) {
+            debugmsg( "Item %s consumes charges via tick_action, but should not", tname() );
+        }
+        return destroy && charges_used > 0;
     }
 
     // if insufficient available charges shutdown the tool

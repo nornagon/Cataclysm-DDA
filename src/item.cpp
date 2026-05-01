@@ -3851,8 +3851,22 @@ bool item::use_charges( const itype_id &what, int &qty, std::list<item> &used,
 
         if( e->is_tool() || e->is_gun() ) {
             if( e->typeId() == what || ( in_tools && e->ammo_current() == what ) ) {
-                int n;
-                if( carrier ) {
+                int n = 0;
+                if( e->uses_firing_requirements() ) {
+                    // Translate raw charges to uses; hard-fail on
+                    // non-divisible to surface mis-baselined recipes.
+                    const int factor = e->type ? e->type->legacy_charges_per_use_factor : 1;
+                    if( factor < 1 || qty % factor != 0 ) {
+                        debugmsg( "use_charges: %s requested %d charges with "
+                                  "legacy_charges_per_use_factor %d (not a multiple); "
+                                  "recipe / caller needs to be re-baselined to uses",
+                                  e->tname(), qty, factor );
+                        return VisitResponse::NEXT;
+                    }
+                    const int wanted_uses = qty / factor;
+                    const int got_uses = e->consume_tool_uses( wanted_uses, get_map(), pos, carrier );
+                    n = got_uses * factor;
+                } else if( carrier ) {
                     n = e->ammo_consume( qty, pos, carrier );
                 } else {
                     n = e->ammo_consume( qty, pos, nullptr );
