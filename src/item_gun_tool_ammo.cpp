@@ -2180,6 +2180,12 @@ int item::ammo_remaining_in_pocket( const std::string &id ) const
     return 0;
 }
 
+int item::ammo_consume_in_pocket( const std::string &id, int qty, map &here,
+                                  const tripoint_bub_ms &pos )
+{
+    return contents.ammo_consume_in_pocket( id, qty, &here, pos );
+}
+
 bool item::uses_firing_requirements() const
 {
     return type && !type->firing_requirements.empty();
@@ -2250,6 +2256,466 @@ const item *item::ammo_identity_mag() const
         return p ? p->magazine_current() : nullptr;
     }
     return magazine_current();
+}
+
+bool item::pocket_accepts_battery( const item_pocket *p ) const
+{
+    if( p == nullptr ) {
+        return false;
+    }
+    for( const ammotype &at : p->ammo_types() ) {
+        if( at == ammo_battery ) {
+            return true;
+        }
+    }
+    for( const itype_id &allowed : p->item_type_restrictions() ) {
+        if( !allowed->magazine ) {
+            continue;
+        }
+        for( const ammotype &slot : allowed->magazine->type ) {
+            if( slot == ammo_battery ) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool item::pocket_is_primary_ammo( const item_pocket *p ) const
+{
+    if( p == nullptr || !type || !type->gun || type->gun->ammo.empty() ) {
+        return false;
+    }
+    for( const ammotype &at : p->ammo_types() ) {
+        if( type->gun->ammo.count( at ) ) {
+            return true;
+        }
+    }
+    for( const itype_id &allowed : p->item_type_restrictions() ) {
+        if( !allowed->magazine ) {
+            continue;
+        }
+        for( const ammotype &slot : allowed->magazine->type ) {
+            if( type->gun->ammo.count( slot ) ) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static int method_scale( const itype *type, const std::string &method )
+{
+    if( !type || method.empty() ) {
+        return 1;
+    }
+    auto it = type->ammo_scale.find( method );
+    return it == type->ammo_scale.end() ? 1 : it->second;
+}
+
+static std::string format_entry_name( const item &host, const pocket_consumption_entry &e,
+                                      int qty )
+{
+    const item_pocket *p = host.pocket_by_id( e.pocket );
+    if( p == nullptr ) {
+        return e.pocket;
+    }
+    if( const item *mag = p->magazine_current() ) {
+        if( const itype *adata = mag->ammo_data() ) {
+            return adata->nname( qty );
+        }
+    }
+    const pocket_data *pd = p->get_pocket_data();
+    if( pd ) {
+        const std::string display = pd->pocket_name.translated();
+        if( !display.empty() ) {
+            return display;
+        }
+        if( !pd->default_magazine.is_null() && pd->default_magazine->magazine ) {
+            const itype_id &default_ammo = pd->default_magazine->magazine->default_ammo;
+            if( !default_ammo.is_null() && default_ammo->ammo ) {
+                return default_ammo->nname( qty );
+            }
+        }
+    }
+    std::string fallback = e.pocket;
+    std::replace( fallback.begin(), fallback.end(), '_', ' ' );
+    return fallback;
+}
+
+std::string item::format_consumption_requirements(
+    const std::string &method, const gun_mode_id &mode, int uses ) const
+{
+    const int scale = method_scale( type, method );
+    if( !uses_firing_requirements() ) {
+        if( type && type->gun ) {
+            const int qty = ammo_required() * scale * uses;
+            const units::energy energy = get_gun_energy_drain() * scale * uses;
+            std::string out = string_format( _( "%d charges" ), qty );
+            if( energy > 0_kJ ) {
+                out += string_format( _( ", %d kJ" ), units::to_kilojoule( energy ) );
+            }
+            return out;
+        }
+        const int qty = ammo_required() * scale * uses;
+        return string_format( _( "%d charges" ), qty );
+    }
+
+    const std::vector<pocket_consumption_entry> *entries =
+        type->firing_requirements.for_mode( mode );
+    if( entries == nullptr || entries->empty() ) {
+        return std::string();
+    }
+    std::vector<std::string> parts;
+    for( const pocket_consumption_entry &e : *entries ) {
+        const int qty = effective_qty( e ) * scale * uses;
+        if( qty <= 0 ) {
+            continue;
+        }
+        parts.emplace_back( string_format( "%d %s", qty, format_entry_name( *this, e, qty ) ) );
+    }
+    if( parts.empty() ) {
+        return std::string();
+    }
+    std::string joined;
+    bool first = true;
+    for( const std::string &part : parts ) {
+        if( !first ) {
+            joined += " + ";
+        }
+        first = false;
+        joined += part;
+    }
+    return joined;
+}
+
+int item::expected_cost_per_use( const std::string &method ) const
+{
+    const int scale = method_scale( type, method );
+    if( !uses_firing_requirements() ) {
+        // ammo_required() already routes guns to ammo_to_fire and tools to
+        // charges_per_use, so it's the right scalar for both legacy paths.
+        return ammo_required() * scale;
+    }
+    const std::vector<pocket_consumption_entry> *entries =
+        type->firing_requirements.for_mode( gun_mode_id( "DEFAULT" ) );
+    if( entries == nullptr ) {
+        return 0;
+    }
+    int total = 0;
+    for( const pocket_consumption_entry &e : *entries ) {
+        total += effective_qty( e );
+    }
+    return total * scale;
+}
+
+int item::available_cable_charges( map &here ) const
+{
+    if( !has_link_data() ) {
+        return 0;
+    }
+    int64_t avail = 0;
+    if( link().t_veh && link().efficiency >= MIN_LINK_EFFICIENCY ) {
+        avail = link().t_veh->battery_left( here, true );
+    } else if( const optional_vpart_position vp = here.veh_at( link().t_abs_pos ) ) {
+        avail = vp->vehicle().battery_left( here, true );
+    }
+    return static_cast<int>( std::min<int64_t>( avail, INT_MAX ) );
+}
+
+int item::available_ups_charges( const Character *carrier ) const
+{
+    if( !carrier || !has_flag( flag_USE_UPS ) ) {
+        return 0;
+    }
+    return units::to_kilojoule( carrier->available_ups() );
+}
+
+int item::available_bionic_charges( const Character *carrier ) const
+{
+    if( !carrier || !has_flag( flag_USES_BIONIC_POWER ) ) {
+        return 0;
+    }
+    return units::to_kilojoule( carrier->get_power_level() );
+}
+
+namespace
+{
+// Per-mode feasibility for multimag. Local pocket stock is non-fungible
+// across pocket ids; only the external pool (cable + UPS + bionic) is
+// shared, and it's usable only by battery-flavored entries.
+int feasible_uses( const item &host,
+                   const std::vector<pocket_consumption_entry> &entries,
+                   int requested, int external_pool )
+{
+    int n_max = INT_MAX;
+    struct battery_entry {
+        int qty;
+        int stock;
+    };
+    std::vector<battery_entry> battery;
+    for( const pocket_consumption_entry &e : entries ) {
+        const int q = host.effective_qty( e );
+        if( q <= 0 ) {
+            continue;
+        }
+        const int local = host.ammo_remaining_in_pocket( e.pocket );
+        const item_pocket *p = host.pocket_by_id( e.pocket );
+        if( host.pocket_accepts_battery( p ) ) {
+            battery.push_back( { q, local } );
+        } else {
+            n_max = std::min( n_max, local / q );
+        }
+    }
+
+    if( battery.empty() ) {
+        return std::min( requested, n_max );
+    }
+
+    // Pool need(n) = sum_{i past breakpoint} (n*qty_i - stock_i) is
+    // piecewise linear; walk breakpoints in ascending stock_i / qty_i order.
+    std::sort( battery.begin(), battery.end(),
+    []( const battery_entry & a, const battery_entry & b ) {
+        return static_cast<int64_t>( a.stock ) * b.qty <
+               static_cast<int64_t>( b.stock ) * a.qty;
+    } );
+
+    int qty_sum_past = 0;
+    int stock_sum_past = 0;
+    int n = 0;
+    bool exhausted = false;
+    for( const battery_entry &b : battery ) {
+        const int n_break = b.stock / b.qty;
+        if( qty_sum_past > 0 ) {
+            const int n_max_segment =
+                ( external_pool + stock_sum_past ) / qty_sum_past;
+            if( n_max_segment < n_break ) {
+                n = std::max( n, n_max_segment );
+                exhausted = true;
+                break;
+            }
+            n = std::max( n, n_break );
+        } else {
+            n = std::max( n, n_break );
+        }
+        qty_sum_past += b.qty;
+        stock_sum_past += b.stock;
+    }
+    if( !exhausted && qty_sum_past > 0 ) {
+        const int n_after = ( external_pool + stock_sum_past ) / qty_sum_past;
+        n = std::max( n, n_after );
+    }
+    return std::min( { requested, n_max, n } );
+}
+} // namespace
+
+int item::tool_uses_remaining( map &here, const Character *carrier ) const
+{
+    if( !uses_firing_requirements() ) {
+        return shots_remaining( here, carrier );
+    }
+    const std::vector<pocket_consumption_entry> *entries =
+        type->firing_requirements.for_mode( gun_mode_id( "DEFAULT" ) );
+    if( entries == nullptr || entries->empty() ) {
+        return 0;
+    }
+    const int pool = available_cable_charges( here )
+                     + available_ups_charges( carrier )
+                     + available_bionic_charges( carrier );
+    return feasible_uses( *this, *entries, INT_MAX, pool );
+}
+
+int item::tool_uses_remaining_local() const
+{
+    if( !uses_firing_requirements() ) {
+        return 0;
+    }
+    const std::vector<pocket_consumption_entry> *entries =
+        type->firing_requirements.for_mode( gun_mode_id( "DEFAULT" ) );
+    if( entries == nullptr || entries->empty() ) {
+        return 0;
+    }
+    return feasible_uses( *this, *entries, INT_MAX, /*external_pool=*/0 );
+}
+
+namespace
+{
+// Multimag drain in cable -> local -> UPS -> bionic order; applies
+// external deltas exactly once. Returns shots / uses actually consumed.
+int multimag_drain( item &host, const std::vector<pocket_consumption_entry> &entries,
+                    int requested, map &here, const tripoint_bub_ms &pos,
+                    Character *carrier )
+{
+    const int cable_initial = host.available_cable_charges( here );
+    const int ups_initial = host.available_ups_charges( carrier );
+    const int bionic_initial = host.available_bionic_charges( carrier );
+    const int pool = cable_initial + ups_initial + bionic_initial;
+
+    const int allowed = feasible_uses( host, entries, requested, pool );
+    if( allowed <= 0 ) {
+        return 0;
+    }
+
+    int cable_left = cable_initial;
+    int ups_left = ups_initial;
+    int bionic_left = bionic_initial;
+
+    for( const pocket_consumption_entry &e : entries ) {
+        int qty = host.effective_qty( e ) * allowed;
+        if( qty <= 0 ) {
+            continue;
+        }
+        const item_pocket *p = host.pocket_by_id( e.pocket );
+        const bool battery = host.pocket_accepts_battery( p );
+        if( battery ) {
+            const int from_cable = std::min( qty, cable_left );
+            cable_left -= from_cable;
+            qty        -= from_cable;
+        }
+        if( qty > 0 ) {
+            const int from_local = host.ammo_consume_in_pocket( e.pocket, qty, here, pos );
+            qty -= from_local;
+        }
+        if( battery && qty > 0 ) {
+            const int from_ups = std::min( qty, ups_left );
+            ups_left -= from_ups;
+            qty      -= from_ups;
+            const int from_bionic = std::min( qty, bionic_left );
+            bionic_left -= from_bionic;
+            qty         -= from_bionic;
+        }
+        if( qty > 0 ) {
+            debugmsg( "consume_shots: shortfall on pocket %s after feasibility check (%s)",
+                      e.pocket, host.tname() );
+        }
+    }
+
+    const int cable_used = cable_initial - cable_left;
+    const int ups_used = ups_initial - ups_left;
+    const int bionic_used = bionic_initial - bionic_left;
+    if( cable_used > 0 && host.has_link_data() ) {
+        if( host.link().t_veh && host.link().efficiency >= MIN_LINK_EFFICIENCY ) {
+            host.link().t_veh->discharge_battery( here, cable_used, true );
+        } else if( const optional_vpart_position vp = here.veh_at( host.link().t_abs_pos ) ) {
+            vp->vehicle().discharge_battery( here, cable_used, true );
+        }
+    }
+    if( carrier ) {
+        if( ups_used > 0 ) {
+            carrier->consume_ups( units::from_kilojoule( static_cast<int64_t>( ups_used ) ) );
+        }
+        if( bionic_used > 0 ) {
+            carrier->mod_power_level(
+                -units::from_kilojoule( static_cast<int64_t>( bionic_used ) ) );
+        }
+    }
+    return allowed;
+}
+} // namespace
+
+int item::consume_shots( const gun_mode_id &mode, int shots, map &here,
+                         const tripoint_bub_ms &pos, Character *carrier )
+{
+    if( shots <= 0 ) {
+        return 0;
+    }
+    if( uses_firing_requirements() ) {
+        const std::vector<pocket_consumption_entry> *entries =
+            type->firing_requirements.for_mode( mode );
+        if( entries == nullptr || entries->empty() ) {
+            debugmsg( "consume_shots: %s has no firing_requirements entries for mode %s",
+                      tname(), mode.str() );
+            return 0;
+        }
+        return multimag_drain( *this, *entries, shots, here, pos, carrier );
+    }
+    // Legacy path: ammo_consume + energy_consume per shot.
+    const int required_ammo = ammo_required() * shots;
+    const units::energy required_energy = get_gun_energy_drain() * shots;
+    if( required_ammo > 0 ) {
+        const int consumed_ammo = ammo_consume( required_ammo, here, pos, carrier );
+        if( consumed_ammo != required_ammo ) {
+            return 0;
+        }
+    }
+    if( required_energy > 0_kJ ) {
+        const units::energy drained = energy_consume( required_energy, &here, pos, carrier );
+        if( drained < required_energy ) {
+            return 0;
+        }
+    }
+    return shots;
+}
+
+int item::consume_tool_uses( int uses, map &here, const tripoint_bub_ms &pos,
+                             Character *carrier )
+{
+    if( uses <= 0 ) {
+        return 0;
+    }
+    if( uses_firing_requirements() ) {
+        const std::vector<pocket_consumption_entry> *entries =
+            type->firing_requirements.for_mode( gun_mode_id( "DEFAULT" ) );
+        if( entries == nullptr || entries->empty() ) {
+            debugmsg( "consume_tool_uses: %s has no DEFAULT firing_requirements entries",
+                      tname() );
+            return 0;
+        }
+        return multimag_drain( *this, *entries, uses, here, pos, carrier );
+    }
+    // Legacy path: ammo_consume(charges_to_use * uses).
+    const int per_use = type ? type->charges_to_use() : 0;
+    if( per_use <= 0 ) {
+        return uses;
+    }
+    const int required = per_use * uses;
+    const int consumed = ammo_consume( required, here, pos, carrier );
+    if( consumed != required ) {
+        return consumed / per_use;
+    }
+    return uses;
+}
+
+int item::consume_one_shot( map &here, const tripoint_bub_ms &pos, Character *carrier )
+{
+    const gun_mode_id mode = is_gun() ? gun_get_mode_id() : gun_mode_id( "DEFAULT" );
+    return consume_shots( mode, 1, here, pos, carrier );
+}
+
+int item::effective_qty( const pocket_consumption_entry &e ) const
+{
+    const item_pocket *p = pocket_by_id( e.pocket );
+    const bool is_primary = pocket_is_primary_ammo( p );
+    const bool is_battery = pocket_accepts_battery( p );
+
+    float multiplier = 1.0f;
+    int modifier_int = 0;
+    units::energy modifier_energy = 0_kJ;
+    if( is_gun() ) {
+        for( const item *mod : gunmods() ) {
+            if( !mod->type || !mod->type->gunmod ) {
+                continue;
+            }
+            if( is_primary ) {
+                multiplier *= mod->type->gunmod->ammo_to_fire_multiplier;
+                modifier_int += mod->type->gunmod->ammo_to_fire_modifier;
+            } else if( is_battery ) {
+                multiplier *= mod->type->gunmod->energy_drain_multiplier;
+                modifier_energy += mod->type->gunmod->energy_drain_modifier;
+            }
+        }
+    }
+
+    double scaled = static_cast<double>( e.qty ) * multiplier
+                    + static_cast<double>( modifier_int )
+                    + units::to_kilojoule( modifier_energy );
+    if( scaled <= 0.0 ) {
+        return 0;
+    }
+    if( scaled < 1.0 ) {
+        return 1;
+    }
+    return static_cast<int>( scaled );
 }
 
 std::vector<item *> item::gunmods()

@@ -381,6 +381,11 @@ class item_contents
         /** Return the amount of ammo consumed. */
         int ammo_consume( int qty, const tripoint_bub_ms &pos, float fuel_efficiency = -1.0 );
         int ammo_consume( int qty, map *here, const tripoint_bub_ms &pos, float fuel_efficiency = -1.0 );
+        /** Drain `qty` ammo charges from the pocket whose `pocket_data.id`
+         *  matches `id`. MAGAZINE_WELL: drains the contained magazine's ammo.
+         *  MAGAZINE: drains directly. Returns charges actually consumed. */
+        int ammo_consume_in_pocket( const std::string &id, int qty, map *here,
+                                    const tripoint_bub_ms &pos );
         item *magazine_current();
         const item *magazine_current() const;
         std::vector<item *> magazines_current();
