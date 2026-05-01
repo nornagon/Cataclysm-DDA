@@ -1312,11 +1312,19 @@ void item::gun_info( const item *mod, std::vector<iteminfo> &info, const iteminf
                            "<info>" + skill.name() + "</info>" );
     }
 
-    if( mod->magazine_integral() || mod->magazine_current() ) {
-        if( mod->magazine_current() && parts->test( iteminfo_parts::GUN_MAGAZINE ) ) {
-            info.emplace_back( "GUN", _( "Magazine: " ),
-                               string_format( "<stat>%s</stat>",
-                                              mod->magazine_current()->tname() ) );
+    if( mod->magazine_integral() || !mod->magazines_current().empty() ) {
+        const std::vector<const item *> loaded_mags = mod->magazines_current();
+        if( !loaded_mags.empty() && parts->test( iteminfo_parts::GUN_MAGAZINE ) ) {
+            std::string mag_names;
+            for( size_t i = 0; i < loaded_mags.size(); ++i ) {
+                if( i > 0 ) {
+                    mag_names += ", ";
+                }
+                mag_names += loaded_mags[i]->tname();
+            }
+            info.emplace_back( "GUN",
+                               n_gettext( "Magazine: ", "Magazines: ", loaded_mags.size() ),
+                               string_format( "<stat>%s</stat>", mag_names ) );
         }
         if( !mod->ammo_types().empty() && parts->test( iteminfo_parts::GUN_CAPACITY ) ) {
             for( const ammotype &at : mod->ammo_types() ) {
@@ -2728,9 +2736,18 @@ void item::tool_info( std::vector<iteminfo> &info, const iteminfo_query *parts, 
     }
 
     if( !magazine_integral() ) {
-        if( magazine_current() && parts->test( iteminfo_parts::TOOL_MAGAZINE_CURRENT ) ) {
-            info.emplace_back( "TOOL", _( "Magazine: " ),
-                               string_format( "<stat>%s</stat>", magazine_current()->tname() ) );
+        const std::vector<const item *> loaded_mags = magazines_current();
+        if( !loaded_mags.empty() && parts->test( iteminfo_parts::TOOL_MAGAZINE_CURRENT ) ) {
+            std::string mag_names;
+            for( size_t i = 0; i < loaded_mags.size(); ++i ) {
+                if( i > 0 ) {
+                    mag_names += ", ";
+                }
+                mag_names += loaded_mags[i]->tname();
+            }
+            info.emplace_back( "TOOL",
+                               n_gettext( "Magazine: ", "Magazines: ", loaded_mags.size() ),
+                               string_format( "<stat>%s</stat>", mag_names ) );
         }
 
         if( parts->test( iteminfo_parts::TOOL_MAGAZINE_COMPATIBLE ) ) {

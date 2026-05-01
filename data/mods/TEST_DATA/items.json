@@ -5707,5 +5707,29 @@
       { "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
       { "magazine_well": "500 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "stanag30" ] }
     ]
+  },
+  {
+    "id": "test_multimag_gun_same_type",
+    "type": "ITEM",
+    "subtypes": [ "GUN" ],
+    "name": { "str": "test same-type multimag gun" },
+    "description": "Test gun with two wells restricted to the same magazine type, used to verify pocket-targeted reload disambiguates between identical wells.",
+    "weight": "1000 g",
+    "volume": "1500 ml",
+    "longest_side": "400 mm",
+    "material": [ "steel" ],
+    "symbol": "(",
+    "color": "light_gray",
+    "ammo": [ "9mm" ],
+    "skill": "pistol",
+    "range": 10,
+    "ranged_damage": { "damage_type": "bullet", "amount": 10 },
+    "dispersion": 480,
+    "durability": 10,
+    "flags": [ "NO_TURRET" ],
+    "pocket_data": [
+      { "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
+      { "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] }
+    ]
   }
 ]

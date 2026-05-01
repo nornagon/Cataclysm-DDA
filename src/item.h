@@ -606,11 +606,18 @@ class item : public visitable
                 reload_option &operator=( const reload_option & );
 
                 reload_option( const Character *who, const item_location &target, const item_location &ammo );
+                reload_option( const Character *who, const item_location &target, const item_location &ammo,
+                               int pocket_index );
 
                 const Character *who = nullptr;
                 item_location target;
                 item_location ammo;
                 bool is_reload_one = false;
+                // MAGAZINE_WELL pocket index in target->contents. Negative =
+                // first-compatible-well fallback.
+                // TODO(multimag): drop the default once all callers carry an
+                // explicit pocket_index.
+                int pocket_index = -1;
 
                 int qty() const {
                     return qty_;
@@ -632,8 +639,11 @@ class item : public visitable
          * @param u Player doing the reloading
          * @param ammo Location of ammo to be reloaded
          * @param qty caps reloading to this (or fewer) units
+         * @param pocket_index Optional index in this->contents identifying
+         *        which MAGAZINE_WELL pocket to reload. Negative falls
+         *        through to first-compatible-well selection.
          */
-        bool reload( Character &u, item_location ammo, int qty );
+        bool reload( Character &u, item_location ammo, int qty, int pocket_index = -1 );
         // is this speedloader compatible with this item?
         bool allows_speedloader( const itype_id &speedloader_id ) const;
 
@@ -2653,6 +2663,16 @@ class item : public visitable
          */
         int remaining_ammo_capacity() const;
 
+        /**
+         * Per-MAGAZINE_WELL-pocket overloads. The index is the pocket position
+         * in this->contents (insertion order). Out-of-range or non-MAGAZINE_WELL
+         * indices return 0. Use these to ask about a specific well on items
+         * with more than one MAGAZINE_WELL pocket.
+         */
+        int ammo_remaining( int well_idx ) const;
+        int ammo_capacity( int well_idx ) const;
+        int remaining_ammo_capacity( int well_idx ) const;
+
         /** Quantity of ammunition consumed per usage of tool or with each shot of gun */
         int ammo_required() const;
         item &first_ammo();
@@ -2786,6 +2806,30 @@ class item : public visitable
          * @return magazine type or "null" if item has integral magazine or no magazines for current ammo type.
          */
         itype_id magazine_default( bool conversion = false ) const;
+
+        /**
+         * Default magazine of every MAGAZINE_WELL pocket directly on this item.
+         * Wells with no default contribute NULL_ID. Does not walk into gunmods'
+         * own internal pockets; spawn-time and ambiguity checks operate on the
+         * host's own wells (mod-supplied wells are folded in via
+         * update_modified_pockets).
+         */
+        std::vector<itype_id> magazines_default() const;
+
+        /**
+         * Every MAGAZINE_WELL pocket directly on this item. Same scope rule as
+         * magazines_default().
+         */
+        std::vector<item_pocket *> all_magazine_well_pockets();
+        std::vector<const item_pocket *> all_magazine_well_pockets() const;
+
+        /**
+         * Spawn-time dressing for every MAGAZINE_WELL on this item.
+         * Empty wells get the default magazine when insert_default_mag is true;
+         * present-but-empty magazines get default ammo when fill_with_default_ammo
+         * is true; loaded magazines are untouched.
+         */
+        void dress_magazine_wells( bool insert_default_mag, bool fill_with_default_ammo );
 
         /**
          * Get compatible magazines (if any) for this item.

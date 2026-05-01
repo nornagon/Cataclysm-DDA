@@ -1916,8 +1916,19 @@ class Character : public Creature, public visitable
          */
         void mend_item( item_location &&obj, bool interactive = true );
 
+        /**
+         * Build the list of reload_option entries for selecting reload ammo
+         * for `base`. With `per_well_targets` false the function emits one
+         * option per item (base and each gunmod) plus one per loaded
+         * magazine, all carrying reload_option::pocket_index = -1, which
+         * routes execution through the first-compatible-well selection
+         * inside item::reload. With `per_well_targets` true it additionally
+         * walks every MAGAZINE_WELL pocket on the base item and on each
+         * gunmod, emitting per-well reload targets whose pocket_index
+         * identifies the specific well in target->contents.
+         */
         bool list_ammo( const item_location &base, std::vector<item::reload_option> &ammo_list,
-                        bool empty = true ) const;
+                        bool empty = true, bool per_well_targets = false ) const;
         /**
          * Select suitable ammo with which to reload the item
          * @param base Item to select ammo for

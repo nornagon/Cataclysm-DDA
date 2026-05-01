@@ -2769,6 +2769,8 @@ item_location npc::find_usable_ammo( const item_location &weap ) const
 
 item::reload_option npc::select_ammo( const item_location &base, bool, bool empty )
 {
+    // TODO(multimag): NPC reload uses the legacy first-compatible-well
+    // fallback (no UI to disambiguate sibling wells).
     if( !base ) {
         return item::reload_option();
     }
@@ -6184,6 +6186,8 @@ void npc::do_reload( const item_location &it )
     int qty = reload_opt.qty();
     int reload_time = item_reload_cost( *it, *usable_ammo, qty );
     // TODO: Consider printing this info to player too
+    // TODO(multimag): pocket_index defaults to -1 (first compatible well).
+    // NPCs cannot pick a specific well on multi-well guns yet.
     const std::string ammo_name = usable_ammo->tname();
     if( !target.reload( *this, std::move( usable_ammo ), qty ) ) {
         debugmsg( "do_reload failed: item %s could not be reloaded with %ld charge(s) of %s",

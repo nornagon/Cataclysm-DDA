@@ -2245,6 +2245,9 @@ class reload_activity_actor : public activity_actor
         int quantity = 0;
         int seconds_per_round = 0;
         int already_loaded = 0;
+        // MAGAZINE_WELL pocket index in target_loc->contents. Negative =
+        // first-compatible-well fallback.
+        int pocket_index = -1;
         // cache ammo because reloading deletes the location
         itype_id ammo_id; // NOLINT(cata-serialize)
         item_location target_loc;

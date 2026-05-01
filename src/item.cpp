@@ -1569,20 +1569,99 @@ std::string item::display_name( unsigned int quantity ) const
     int amount = 0;
     int max_amount = 0;
     bool show_amt = false;
+    bool amt_built_for_multimag = false;
     // We should handle infinite charges properly in all cases.
     if( is_book() && get_chapters() > 0 ) {
         // a book which has remaining unread chapters
         amount = get_remaining_chapters( player_character );
-    } else if( magazine_current() ) {
-        show_amt = true;
-        const item *mag = magazine_current();
-        amount = ammo_remaining( );
-        const itype *adata = mag->ammo_data();
-        if( adata ) {
-            max_amount = mag->ammo_capacity( adata->ammo->type );
+    } else if( magazine_current() || get_pockets( []( const item_pocket & p ) {
+    return p.is_type( pocket_type::MAGAZINE_WELL );
+    } ).size() > 1 ) {
+        const std::vector<const item_pocket *> well_pockets = get_pockets(
+        []( const item_pocket & p ) {
+            return p.is_type( pocket_type::MAGAZINE_WELL );
+        } );
+        if( well_pockets.size() > 1 ) {
+            // Multi-well: show every well, loaded or not.
+            const bool show_ammo_name = is_gun() && ammo_required() &&
+                                        get_option<bool>( "AMMO_IN_NAMES" );
+            std::vector<std::string> segments;
+            for( const item_pocket *p : well_pockets ) {
+                const item *mag = p->magazine_current();
+                int well_amount = 0;
+                int well_max = 0;
+                const itype *ammo_for_name = nullptr;
+                itype_id ammo_id_for_name;
+                if( mag != nullptr ) {
+                    well_amount = mag->ammo_remaining();
+                    const itype *adata = mag->ammo_data();
+                    well_max = adata
+                               ? mag->ammo_capacity( adata->ammo->type )
+                               : mag->ammo_capacity( item_controller->find_template(
+                                                         mag->ammo_default() )->ammo->type );
+                    ammo_for_name = adata;
+                    ammo_id_for_name = mag->ammo_current();
+                    if( ammo_id_for_name.is_null() ) {
+                        ammo_id_for_name = mag->ammo_default();
+                    }
+                } else {
+                    const itype_id default_mag = p->magazine_default();
+                    if( !default_mag.is_null() && default_mag->magazine ) {
+                        const itype_id &default_ammo = default_mag->magazine->default_ammo;
+                        if( !default_ammo.is_null() && default_ammo->ammo ) {
+                            well_max = default_mag->magazine->capacity;
+                            ammo_for_name = &*default_ammo;
+                            ammo_id_for_name = default_ammo;
+                        }
+                    }
+                }
+                nc_color color = c_white;
+                if( well_amount == 0 ) {
+                    color = c_light_red;
+                } else if( well_max > 0 && well_amount < well_max ) {
+                    const double ratio = static_cast<double>( well_amount ) /
+                                         static_cast<double>( well_max );
+                    if( ratio < 1.0 / 3.0 ) {
+                        color = c_red;
+                    } else if( ratio < 2.0 / 3.0 ) {
+                        color = c_yellow;
+                    } else {
+                        color = c_light_green;
+                    }
+                }
+                std::string segment = colorize( string_format( "%i/%i", well_amount, well_max ),
+                                                color );
+                if( show_ammo_name && !ammo_id_for_name.is_null() ) {
+                    std::string ammoname = ammo_id_for_name->nname( 1 );
+                    if( ammoname.empty() && ammo_for_name && ammo_for_name->ammo ) {
+                        ammoname = ammo_for_name->ammo->type->name();
+                    }
+                    if( !ammoname.empty() ) {
+                        segment += " " + ammoname;
+                    }
+                }
+                segments.emplace_back( segment );
+            }
+            std::string joined;
+            for( size_t i = 0; i < segments.size(); ++i ) {
+                if( i > 0 ) {
+                    joined += ", ";
+                }
+                joined += segments[i];
+            }
+            amt = " (" + joined + ")";
+            amt_built_for_multimag = true;
         } else {
-            max_amount = mag->ammo_capacity( item_controller->find_template(
-                                                 mag->ammo_default() )->ammo->type );
+            show_amt = true;
+            const item *mag = magazine_current();
+            amount = ammo_remaining( );
+            const itype *adata = mag->ammo_data();
+            if( adata ) {
+                max_amount = mag->ammo_capacity( adata->ammo->type );
+            } else {
+                max_amount = mag->ammo_capacity( item_controller->find_template(
+                                                     mag->ammo_default() )->ammo->type );
+            }
         }
     } else if( is_tool() && has_flag( flag_USES_NEARBY_AMMO ) ) {
         show_amt = true;
@@ -1632,37 +1711,39 @@ std::string item::display_name( unsigned int quantity ) const
         }
     }
 
-    if( ( amount || show_amt ) && !has_flag( flag_PSEUDO ) ) {
-        if( is_money() ) {
-            amt = " " + format_money( amount );
-        } else {
-            if( !ammotext.empty() ) {
-                ammotext = " " + ammotext;
-            }
-
-            if( max_amount != 0 ) {
-                const double ratio = static_cast<double>( amount ) / static_cast<double>( max_amount );
-                nc_color charges_color;
-                if( amount == 0 ) {
-                    charges_color = c_light_red;
-                } else if( amount == max_amount ) {
-                    charges_color = c_white;
-                } else if( ratio < 1.0 / 3.0 ) {
-                    charges_color = c_red;
-                } else if( ratio < 2.0 / 3.0 ) {
-                    charges_color = c_yellow;
-                } else {
-                    charges_color = c_light_green;
-                }
-                amt = string_format( " (%s%s)", colorize( string_format( "%i/%i", amount, max_amount ),
-                                     charges_color ),
-                                     ammotext );
+    if( !amt_built_for_multimag ) {
+        if( ( amount || show_amt ) && !has_flag( flag_PSEUDO ) ) {
+            if( is_money() ) {
+                amt = " " + format_money( amount );
             } else {
-                amt = string_format( " (%i%s)", amount, ammotext );
+                if( !ammotext.empty() ) {
+                    ammotext = " " + ammotext;
+                }
+
+                if( max_amount != 0 ) {
+                    const double ratio = static_cast<double>( amount ) / static_cast<double>( max_amount );
+                    nc_color charges_color;
+                    if( amount == 0 ) {
+                        charges_color = c_light_red;
+                    } else if( amount == max_amount ) {
+                        charges_color = c_white;
+                    } else if( ratio < 1.0 / 3.0 ) {
+                        charges_color = c_red;
+                    } else if( ratio < 2.0 / 3.0 ) {
+                        charges_color = c_yellow;
+                    } else {
+                        charges_color = c_light_green;
+                    }
+                    amt = string_format( " (%s%s)", colorize( string_format( "%i/%i", amount, max_amount ),
+                                         charges_color ),
+                                         ammotext );
+                } else {
+                    amt = string_format( " (%i%s)", amount, ammotext );
+                }
             }
+        } else if( !ammotext.empty() ) {
+            amt = " (" + ammotext + ")";
         }
-    } else if( !ammotext.empty() ) {
-        amt = " (" + ammotext + ")";
     }
 
     if( has_link_data() ) {
