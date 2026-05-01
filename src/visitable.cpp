@@ -870,15 +870,19 @@ static int charges_of_internal( const T &self, const M &main, const itype_id &id
               ( id == itype_UPS && e->has_flag( flag_IS_UPS ) ) ) &&
             !e->is_broken() ) {
             if( id != itype_UPS ) {
-                if( e->count_by_charges() ) {
+                if( e->uses_firing_requirements() ) {
+                    // Multimag: contribute local-only uses to avoid summing
+                    // the same external pool once per matching item.
+                    qty = sum_no_wrap( qty, e->tool_uses_remaining_local() );
+                } else if( e->count_by_charges() ) {
                     qty = sum_no_wrap( qty, e->charges );
                 } else {
                     qty = sum_no_wrap( qty, e->ammo_remaining_linked( here, nullptr ) );
-                }
-                if( e->has_flag( json_flag_USE_UPS ) ) {
-                    found_tool_with_UPS = true;
-                } else if( e->has_flag( json_flag_USES_BIONIC_POWER ) ) {
-                    found_bionic_tool = true;
+                    if( e->has_flag( json_flag_USE_UPS ) ) {
+                        found_tool_with_UPS = true;
+                    } else if( e->has_flag( json_flag_USES_BIONIC_POWER ) ) {
+                        found_bionic_tool = true;
+                    }
                 }
             } else if( id == itype_UPS && e->has_flag( flag_IS_UPS ) ) {
                 qty = sum_no_wrap( qty, e->ammo_remaining_linked( here, nullptr ) );

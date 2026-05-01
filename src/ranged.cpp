@@ -4560,6 +4560,11 @@ bool gunmode_checks_weapon( avatar &you, const map &m, std::vector<std::string> 
         !gmode->has_flag( flag_RELOAD_AND_SHOOT ) ) {
         if( !gmode->ammo_remaining( ) ) {
             messages.push_back( string_format( _( "Your %s is empty!" ), gmode->tname() ) );
+        } else if( gmode->uses_firing_requirements() ) {
+            messages.push_back( string_format( _( "Your %s needs to fire: %s." ),
+                                               gmode->tname(),
+                                               gmode->format_consumption_requirements(
+                                                   /*method=*/"", gmode->gun_get_mode_id() ) ) );
         } else {
             messages.push_back( string_format( _( "Your %s needs %i charges to fire!" ),
                                                gmode->tname(), gmode->ammo_required() ) );

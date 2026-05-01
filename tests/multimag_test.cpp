@@ -45,10 +45,14 @@ static const itype_id itype_38_special( "38_special" );
 static const itype_id itype_556( "556" );
 static const itype_id itype_9mm( "9mm" );
 static const itype_id itype_backpack( "backpack" );
+static const itype_id itype_battery( "battery" );
+static const itype_id itype_book_binder( "book_binder" );
 static const itype_id itype_flashlight( "flashlight" );
 static const itype_id itype_glock_19( "glock_19" );
 static const itype_id itype_glockmag( "glockmag" );
+static const itype_id itype_heavy_battery_cell( "heavy_battery_cell" );
 static const itype_id itype_medium_battery_cell( "medium_battery_cell" );
+static const itype_id itype_paper( "paper" );
 static const itype_id itype_stanag30( "stanag30" );
 static const itype_id itype_sw_619( "sw_619" );
 static const itype_id itype_test_multimag_gun( "test_multimag_gun" );
@@ -56,8 +60,6 @@ static const itype_id itype_test_multimag_gun_consume( "test_multimag_gun_consum
 static const itype_id itype_test_multimag_gun_same_type( "test_multimag_gun_same_type" );
 static const itype_id itype_test_multimag_tool_consume( "test_multimag_tool_consume" );
 static const itype_id itype_test_multimag_tool_factor( "test_multimag_tool_factor" );
-static const itype_id itype_heavy_battery_cell( "heavy_battery_cell" );
-static const itype_id itype_battery( "battery" );
 
 static item make_loaded_glock()
 {
@@ -259,7 +261,9 @@ TEST_CASE( "display_name_multi_well_per_well_counts", "[multimag][display]" )
         REQUIRE( open != std::string::npos );
         REQUIRE( close != std::string::npos );
         const std::string inner = name.substr( open + 1, close - open - 1 );
-        CHECK( inner == "0/15, 30/30" );
+        CHECK( inner.find( "0/15" ) != std::string::npos );
+        CHECK( inner.find( "30/30" ) != std::string::npos );
+        CHECK( inner.find( ',' ) != std::string::npos );
     }
 
     SECTION( "dual loaded wells use variant ammo names, not generic class names" ) {
@@ -274,21 +278,20 @@ TEST_CASE( "display_name_multi_well_per_well_counts", "[multimag][display]" )
         CHECK( name.find( variant_556 ) != std::string::npos );
     }
 
-    SECTION( "AMMO_IN_NAMES off: dual wells print counts only, no ammo names" ) {
+    SECTION( "AMMO_IN_NAMES off: dual wells still label per-well ammo" ) {
+        // Multi-well items always label per-well ammo regardless of
+        // AMMO_IN_NAMES so distinct ammotypes sharing one host stay
+        // distinguishable in the inventory tname.
         override_option opt( "AMMO_IN_NAMES", "false" );
         item gun = make_dual_well_gun();
         const std::string name = remove_color_tags( gun.display_name() );
         CAPTURE( name );
-        const size_t open = name.find( '(' );
-        const size_t close = name.find( ')', open );
-        REQUIRE( open != std::string::npos );
-        REQUIRE( close != std::string::npos );
-        const std::string inner = name.substr( open + 1, close - open - 1 );
-        // Just "<a>/<b>, <c>/<d>" with no ammo names interleaved.
-        CHECK( inner.find( item::find_type( itype_9mm )->nname( 1 ) ) == std::string::npos );
-        CHECK( inner.find( item::find_type( itype_556 )->nname( 1 ) ) == std::string::npos );
-        CHECK( inner.find( "15/15" ) != std::string::npos );
-        CHECK( inner.find( "30/30" ) != std::string::npos );
+        const std::string variant_9mm = item::find_type( itype_9mm )->nname( 1 );
+        const std::string variant_556 = item::find_type( itype_556 )->nname( 1 );
+        CHECK( name.find( variant_9mm ) != std::string::npos );
+        CHECK( name.find( variant_556 ) != std::string::npos );
+        CHECK( name.find( "15/15" ) != std::string::npos );
+        CHECK( name.find( "30/30" ) != std::string::npos );
     }
 }
 
@@ -1488,3 +1491,69 @@ TEST_CASE( "Character_use_charges_drains_multimag_tool_via_consume_tool_uses",
     CHECK( loc->ammo_remaining_in_pocket( "well_b" ) == 29 );
 }
 
+TEST_CASE( "charges_of_for_multimag_tool_reports_local_uses",
+           "[multimag][consume]" )
+{
+    clear_avatar();
+    Character &chr = get_avatar();
+    // Tool with well_a=12, well_b=30: floor(12/2)=6, 30/1=30 -> 6 uses local.
+    item tool = make_multimag_consume_tool( 12, 30 );
+    item_location loc = chr.i_add( tool );
+    REQUIRE( loc );
+
+    // Inventory aggregation should report the multimag tool's local uses.
+    const int reported = chr.charges_of( itype_test_multimag_tool_consume );
+    CHECK( reported == 6 );
+}
+
+TEST_CASE( "item_action_comparator_ranks_legacy_below_multimag_by_cost",
+           "[multimag][consume]" )
+{
+    item legacy( itype_glock_19 );
+    item multimag = make_multimag_consume_gun();
+    // glock_19: ammo_to_fire=1 -> expected_cost_per_use=1.
+    // multimag DEFAULT: ammo qty=1 + power qty=5 -> sum=6.
+    CHECK( legacy.expected_cost_per_use() < multimag.expected_cost_per_use() );
+
+    // Multimag tool reports needs_charges_to_use, so the action-menu
+    // free-to-use shortcut never auto-marks it.
+    CHECK( multimag.needs_charges_to_use() );
+}
+
+TEST_CASE( "raw_ammo_tool_drains_paper_count_via_ammo_consume",
+           "[multimag][consume]" )
+{
+    clear_map();
+    tripoint_bub_ms pos( tripoint_bub_ms::zero );
+
+    // book_binder is a TOOL with a MAGAZINE pocket of paper, no
+    // charges_per_use; bookbinder copy drains a per-recipe page count
+    // directly via ammo_consume.
+    item binder( itype_book_binder );
+    item paper_pile( itype_paper, calendar::turn, 50 );
+    REQUIRE( binder.put_in( paper_pile, pocket_type::MAGAZINE ).success() );
+    REQUIRE( binder.ammo_remaining() == 50 );
+
+    const int consumed = binder.ammo_consume( 7, pos, nullptr );
+    CHECK( consumed == 7 );
+    CHECK( binder.ammo_remaining() == 43 );
+}
+
+TEST_CASE( "ammo_consume_on_item_without_charges_per_use_drains_raw_count",
+           "[multimag][consume]" )
+{
+    clear_map();
+    tripoint_bub_ms pos( tripoint_bub_ms::zero );
+
+    // Equivalent shape to multi_cooker's upfront-buffer activation:
+    // legacy item with no charges_per_use; raw ammo_consume must drain
+    // exactly the requested charge count, not collapse to a use count.
+    item bb_mag( itype_glockmag );
+    bb_mag.put_in( item( itype_9mm, calendar::turn, 15 ), pocket_type::MAGAZINE );
+    item legacy( itype_glock_19 );
+    REQUIRE( legacy.put_in( bb_mag, pocket_type::MAGAZINE_WELL ).success() );
+
+    const int consumed = legacy.ammo_consume( 4, pos, nullptr );
+    CHECK( consumed == 4 );
+    CHECK( legacy.ammo_remaining() == 11 );
+}

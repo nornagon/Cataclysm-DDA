@@ -502,11 +502,10 @@ void repair_item_finish( player_activity *act, Character *you, bool no_menu )
         }
 
         if( attempt != repair_item_actor::AS_CANT ) {
-            if( ploc && ploc->where() == item_location::type::map ) {
-                used_tool->ammo_consume( used_tool->ammo_required(), ploc->pos_bub( here ), you );
-            } else {
-                you->consume_charges( *used_tool, used_tool->ammo_required() );
-            }
+            const tripoint_bub_ms tool_pos = ( ploc && ploc->where() == item_location::type::map )
+                                             ? ploc->pos_bub( here )
+                                             : you->pos_bub( here );
+            used_tool->consume_tool_uses( 1, here, tool_pos, you );
         }
 
         // TODO: Allow setting this in the actor
@@ -630,15 +629,16 @@ void repair_item_finish( player_activity *act, Character *you, bool no_menu )
             }
         }
 
+        const int per_use = used_tool->expected_cost_per_use();
         title += used_tool->is_tool() && used_tool->has_flag( flag_USES_NEARBY_AMMO )
                  ? string_format( _( "Charges: <color_light_blue>%d</color> %s (%d per use)\n" ),
                                   ammo_remaining,
                                   ammo_name,
-                                  used_tool->ammo_required() )
+                                  per_use )
                  : string_format( _( "Charges: <color_light_blue>%d/%d</color> %s (%d per use)\n" ),
                                   ammo_remaining, used_tool->ammo_capacity( current_ammo, true ),
                                   ammo_name,
-                                  used_tool->ammo_required() );
+                                  per_use );
         title += string_format( _( "Materials available: %s\n" ), string_join( material_list, ", " ) );
         title += string_format( _( "Skill used: <color_light_blue>%s (%d)</color>\n" ),
                                 actor->used_skill.obj().name(), level );

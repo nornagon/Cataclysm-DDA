@@ -3303,10 +3303,14 @@ void item::qualities_info( std::vector<iteminfo> &info, const iteminfo_query *pa
         }
         // Tools with "charged_qualities" defined may have additional qualities when charged.
         // List them, and show whether there is enough charge to use those qualities.
-        if( !type->charged_qualities.empty() && type->charges_to_use() > 0 ) {
+        if( !type->charged_qualities.empty() && needs_charges_to_use() ) {
             // Use ammo_sufficient() with player character to include bionic/UPS power
             if( ammo_sufficient( &get_player_character() ) ) {
                 info.emplace_back( "QUALITIES", "", _( "<good>Has enough charges</good> for qualities:" ) );
+            } else if( uses_firing_requirements() ) {
+                info.emplace_back( "QUALITIES", "",
+                                   string_format( _( "<bad>Needs to be charged with: %s</bad> for qualities:" ),
+                                                  format_consumption_requirements() ) );
             } else {
                 info.emplace_back( "QUALITIES", "",
                                    string_format( _( "<bad>Needs %d or more charges</bad> for qualities:" ),

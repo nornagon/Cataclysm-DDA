@@ -1582,9 +1582,10 @@ std::string item::display_name( unsigned int quantity ) const
             return p.is_type( pocket_type::MAGAZINE_WELL );
         } );
         if( well_pockets.size() > 1 ) {
-            // Multi-well: show every well, loaded or not.
-            const bool show_ammo_name = is_gun() && ammo_required() &&
-                                        get_option<bool>( "AMMO_IN_NAMES" );
+            // Multi-well: show every well, loaded or not. Per-well ammo
+            // labels are essential when distinct ammotypes share the same
+            // host item, so they ignore AMMO_IN_NAMES.
+            const bool show_ammo_name = true;
             std::vector<std::string> segments;
             for( const item_pocket *p : well_pockets ) {
                 const item *mag = p->magazine_current();
@@ -1693,7 +1694,7 @@ std::string item::display_name( unsigned int quantity ) const
     }
 
     std::string ammotext;
-    if( !is_ammo() && ( ( is_gun() && ammo_required() ) || is_magazine() ) &&
+    if( !is_ammo() && ( ( is_gun() && needs_charges_to_use() ) || is_magazine() ) &&
         get_option<bool>( "AMMO_IN_NAMES" ) ) {
         if( !ammo_current().is_null() ) {
             // Loaded with ammo

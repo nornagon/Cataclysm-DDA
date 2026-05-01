@@ -253,6 +253,8 @@ static const flag_id json_flag_NO_MANUAL_ACTIVATION( "NO_MANUAL_ACTIVATION" );
 
 static const furn_str_id furn_f_translocator_buoy( "f_translocator_buoy" );
 
+static const gun_mode_id gun_mode_DEFAULT( "DEFAULT" );
+
 static const itype_id itype_advanced_ecig( "advanced_ecig" );
 static const itype_id itype_apparatus( "apparatus" );
 static const itype_id itype_arcade_machine( "arcade_machine" );
@@ -4016,7 +4018,7 @@ std::optional<int> iuse::gasmask( Character *p, item *it, const tripoint_bub_ms 
             }
         }
         if( it->get_var( "gas_absorbed", 0 ) >= 60 ) {
-            it->ammo_consume( 1, pos, p );
+            it->consume_tool_uses( 1, get_map(), pos, p );
             it->set_var( "gas_absorbed", 0 );
             if( it->ammo_remaining( ) < 10 ) {
                 p->add_msg_player_or_npc(
@@ -4792,7 +4794,18 @@ std::optional<int> iuse::hacksaw( Character *p, item *it, const tripoint_bub_ms 
     const std::string time_string = colorize( to_string( required_time, true ), c_light_gray );
     query += time_string;
 
-    if( it->ammo_required() ) {
+    if( it->uses_firing_requirements() ) {
+        const int per_turn = std::max( 1, static_cast<int>( p->get_speed() * weary_mult ) );
+        const int first_tick = std::min( required_moves,
+                                         std::max( 1, static_cast<int>( p->get_moves() * weary_mult ) ) );
+        const int remaining = std::max( 0, required_moves - first_tick );
+        const int turns = 1 + ( remaining + per_turn - 1 ) / per_turn;
+        query += "\n";
+        query += string_format( _( "This will require: %s." ),
+                                it->format_consumption_requirements( "HACKSAW",
+                                        gun_mode_DEFAULT,
+                                        std::max( 1, turns ) ) );
+    } else if( it->ammo_required() ) {
         const int charges_needed = it->ammo_required() * required_moves / 100;
         query += "\n";
         if( it->ammo_current()->nname( charges_needed ) == "battery" ) {
@@ -9037,7 +9050,7 @@ std::optional<int> iuse::measure_resonance( Character *p, item *it, const tripoi
     // Different messages for different resonance levels? Dangerous resonance levels are in suffer::from_artifact_resonance
     popup( _( "Detected resonance approximately equal to %i units." ), detected_resonance );
 
-    p->consume_charges( *it, it->type->charges_to_use() );
+    it->consume_tool_uses( 1, get_map(), p->pos_bub(), p );
     p->mod_moves( -to_moves<int>( 2_minutes ) );
 
 
@@ -9139,10 +9152,16 @@ std::optional<int> iuse::binder_add_recipe( Character *p, item *binder, const tr
     const std::vector<const recipe *> recipes( res.begin(), res.end() );
     const auto enough_writing_tool_charges = [&writing_tools]( int pages ) {
         for( const item *it : writing_tools ) {
-            if( it->ammo_required() == 0 ) {
+            if( !it->needs_charges_to_use() ) {
                 return true;
             }
-            pages -= it->ammo_remaining( ) / it->ammo_required();
+            if( it->uses_firing_requirements() ) {
+                // Match the local-only crafting drain path so the precheck
+                // doesn't count externals that the consume side ignores.
+                pages -= it->tool_uses_remaining_local();
+            } else {
+                pages -= it->ammo_remaining( ) / it->ammo_required();
+            }
             if( pages <= 0 ) {
                 return true;
             }
