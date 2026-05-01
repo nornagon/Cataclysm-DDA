@@ -1793,7 +1793,7 @@ int item::activation_consume( int qty, const tripoint_bub_ms &pos, Character *ca
 
 bool item::has_ammo() const
 {
-    const item *mag = magazine_current();
+    const item *mag = ammo_identity_mag();
     if( mag ) {
         return mag->has_ammo();
     }
@@ -1818,7 +1818,7 @@ bool item::has_ammo() const
 
 bool item::has_ammo_data() const
 {
-    const item *mag = magazine_current();
+    const item *mag = ammo_identity_mag();
     if( mag ) {
         return mag->has_ammo_data();
     }
@@ -1843,7 +1843,7 @@ bool item::has_ammo_data() const
 
 const itype *item::ammo_data() const
 {
-    const item *mag = magazine_current();
+    const item *mag = ammo_identity_mag();
     if( mag ) {
         return mag->ammo_data();
     }
@@ -1882,7 +1882,7 @@ itype_id item::ammo_current() const
 
 const item &item::loaded_ammo() const
 {
-    const item *mag = magazine_current();
+    const item *mag = ammo_identity_mag();
     if( mag ) {
         return mag->loaded_ammo();
     }
@@ -2134,6 +2134,122 @@ std::vector<item *> item::magazines_current()
 std::vector<const item *> item::magazines_current() const
 {
     return contents.magazines_current();
+}
+
+item_pocket *item::pocket_by_id( const std::string &id )
+{
+    if( id.empty() ) {
+        return nullptr;
+    }
+    std::vector<item_pocket *> hits = get_pockets(
+    [&id]( const item_pocket & p ) {
+        return p.get_pocket_data() && p.get_pocket_data()->pocket_id == id;
+    } );
+    return hits.empty() ? nullptr : hits.front();
+}
+
+const item_pocket *item::pocket_by_id( const std::string &id ) const
+{
+    if( id.empty() ) {
+        return nullptr;
+    }
+    std::vector<const item_pocket *> hits = get_pockets(
+    [&id]( const item_pocket & p ) {
+        return p.get_pocket_data() && p.get_pocket_data()->pocket_id == id;
+    } );
+    return hits.empty() ? nullptr : hits.front();
+}
+
+int item::ammo_remaining_in_pocket( const std::string &id ) const
+{
+    const item_pocket *p = pocket_by_id( id );
+    if( p == nullptr ) {
+        return 0;
+    }
+    if( p->is_type( pocket_type::MAGAZINE_WELL ) ) {
+        const item *mag = p->magazine_current();
+        return mag ? mag->ammo_remaining( ) : 0;
+    }
+    if( p->is_type( pocket_type::MAGAZINE ) ) {
+        int total = 0;
+        for( const item *e : p->all_items_top() ) {
+            total += e->charges;
+        }
+        return total;
+    }
+    return 0;
+}
+
+bool item::uses_firing_requirements() const
+{
+    return type && !type->firing_requirements.empty();
+}
+
+bool item::needs_charges_to_use() const
+{
+    return ammo_required() > 0 || get_gun_energy_drain() > 0_kJ ||
+           uses_firing_requirements();
+}
+
+const item_pocket *item::primary_ammo_pocket() const
+{
+    const std::vector<const item_pocket *> wells = all_magazine_well_pockets();
+    if( wells.empty() ) {
+        return nullptr;
+    }
+    const std::set<ammotype> *gun_ammo = nullptr;
+    if( type && type->gun ) {
+        gun_ammo = &type->gun->ammo;
+    }
+    auto matches_gun_ammo = [&gun_ammo]( const item_pocket * p ) {
+        if( gun_ammo == nullptr || gun_ammo->empty() ) {
+            return false;
+        }
+        for( const ammotype &at : p->ammo_types() ) {
+            if( gun_ammo->count( at ) ) {
+                return true;
+            }
+        }
+        for( const itype_id &allowed : p->item_type_restrictions() ) {
+            if( !allowed->magazine ) {
+                continue;
+            }
+            for( const ammotype &slot : allowed->magazine->type ) {
+                if( gun_ammo->count( slot ) ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    auto loaded = []( const item_pocket * p ) {
+        return p->magazine_current() != nullptr;
+    };
+    for( const item_pocket *p : wells ) {
+        if( matches_gun_ammo( p ) && loaded( p ) ) {
+            return p;
+        }
+    }
+    for( const item_pocket *p : wells ) {
+        if( matches_gun_ammo( p ) ) {
+            return p;
+        }
+    }
+    for( const item_pocket *p : wells ) {
+        if( loaded( p ) ) {
+            return p;
+        }
+    }
+    return wells.front();
+}
+
+const item *item::ammo_identity_mag() const
+{
+    if( uses_firing_requirements() && type && type->gun ) {
+        const item_pocket *p = primary_ammo_pocket();
+        return p ? p->magazine_current() : nullptr;
+    }
+    return magazine_current();
 }
 
 std::vector<item *> item::gunmods()
