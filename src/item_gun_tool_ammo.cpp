@@ -93,6 +93,7 @@ static const damage_type_id damage_bash( "bash" );
 
 static const fault_id fault_overheat_safety( "fault_overheat_safety" );
 
+static const gun_mode_id gun_mode_DEFAULT( "DEFAULT" );
 static const gun_mode_id gun_mode_REACH( "REACH" );
 
 static const item_category_id item_category_spare_parts( "spare_parts" );
@@ -127,6 +128,24 @@ item &null_item_reference()
     // reset it, in case a previous caller has changed it
     result = item();
     return result;
+}
+
+// Resolve firing entries for a mode. Base-gun modes are required to have
+// explicit entries (see Item_factory::check_definitions), so a missing
+// entry here means the mode came from a gunmod (mode_modifier) and
+// inherits DEFAULT cost.
+static const std::vector<pocket_consumption_entry> *resolve_firing_entries(
+    const item &host, const gun_mode_id &mode )
+{
+    const firing_requirement_set &set = host.type->firing_requirements;
+    const std::vector<pocket_consumption_entry> *entries = set.for_mode( mode );
+    if( entries != nullptr && !entries->empty() ) {
+        return entries;
+    }
+    if( host.type->gun && host.type->gun->modes.count( mode ) ) {
+        return nullptr; // base gun mode without explicit entry: validation failure
+    }
+    return set.for_mode( gun_mode_DEFAULT );
 }
 
 // Per-mode feasibility for multimag. Local pocket stock is non-fungible
@@ -1369,9 +1388,9 @@ int item::gun_range( const Character *p ) const
 int item::shots_remaining( const map &here, const Character *carrier ) const
 {
     if( uses_firing_requirements() ) {
-        const gun_mode_id mode = is_gun() ? gun_get_mode_id() : gun_mode_id( "DEFAULT" );
+        const gun_mode_id mode = is_gun() ? gun_get_mode_id() : gun_mode_DEFAULT;
         const std::vector<pocket_consumption_entry> *entries =
-            type->firing_requirements.for_mode( mode );
+            resolve_firing_entries( *this, mode );
         if( entries == nullptr || entries->empty() ) {
             return 0;
         }
@@ -1505,11 +1524,22 @@ bool item::is_chargeable() const
     if( has_flag( flag_USES_BIONIC_POWER ) && magazines_current().empty() ) {
         return false;
     }
-    if( ammo_remaining() < ammo_capacity( ammo_battery ) ) {
-        return true;
-    } else {
-        return false;
+    // Compare battery-flavored stock vs battery-flavored capacity so a
+    // mixed projectile + battery multimag tool doesn't read full just
+    // because its non-battery wells are loaded.
+    int battery_charges = 0;
+    int battery_capacity = 0;
+    for( const item *mag : magazines_current() ) {
+        if( mag && mag->ammo_capacity( ammo_battery ) > 0 ) {
+            battery_charges += mag->ammo_remaining();
+            battery_capacity += mag->ammo_capacity( ammo_battery );
+        }
     }
+    if( battery_capacity == 0 ) {
+        battery_capacity = ammo_capacity( ammo_battery );
+        battery_charges = ammo_remaining();
+    }
+    return battery_charges < battery_capacity;
 }
 
 units::energy item::energy_remaining( const Character *carrier ) const
@@ -1521,10 +1551,12 @@ units::energy item::energy_remaining( const Character *carrier, bool ignoreExter
 {
     units::energy ret = 0_kJ;
 
-    // Magazine in the item
-    const item *mag = magazine_current();
-    if( mag ) {
-        ret += mag->energy_remaining( carrier );
+    // Sum across every loaded MAGAZINE_WELL; mixed projectile+battery
+    // multimag items would otherwise read only the first well's energy.
+    for( const item *mag : magazines_current() ) {
+        if( mag ) {
+            ret += mag->energy_remaining( carrier );
+        }
     }
 
     if( !ignoreExternalSources ) {
@@ -2286,7 +2318,13 @@ bool item::needs_charges_to_use() const
 
 const item_pocket *item::primary_ammo_pocket() const
 {
-    const std::vector<const item_pocket *> wells = all_magazine_well_pockets();
+    // MAGAZINE pockets count too: the schema accepts integral-mag items as
+    // multimag primaries (e.g. integral cartridge well + battery well).
+    const std::vector<const item_pocket *> wells = get_pockets(
+    []( const item_pocket & p ) {
+        return p.is_type( pocket_type::MAGAZINE_WELL ) ||
+               p.is_type( pocket_type::MAGAZINE );
+    } );
     if( wells.empty() ) {
         return nullptr;
     }
@@ -2316,7 +2354,10 @@ const item_pocket *item::primary_ammo_pocket() const
         return false;
     };
     auto loaded = []( const item_pocket * p ) {
-        return p->magazine_current() != nullptr;
+        if( p->is_type( pocket_type::MAGAZINE_WELL ) ) {
+            return p->magazine_current() != nullptr;
+        }
+        return !p->empty();
     };
     for( const item_pocket *p : wells ) {
         if( matches_gun_ammo( p ) && loaded( p ) ) {
@@ -2340,7 +2381,15 @@ const item *item::ammo_identity_mag() const
 {
     if( uses_firing_requirements() && type && type->gun ) {
         const item_pocket *p = primary_ammo_pocket();
-        return p ? p->magazine_current() : nullptr;
+        if( p == nullptr ) {
+            return nullptr;
+        }
+        if( p->is_type( pocket_type::MAGAZINE_WELL ) ) {
+            return p->magazine_current();
+        }
+        // Integral MAGAZINE pocket: the ammo itself drives identity.
+        const std::list<const item *> contents_top = p->all_items_top();
+        return contents_top.empty() ? nullptr : contents_top.front();
     }
     return magazine_current();
 }
@@ -2449,7 +2498,7 @@ std::string item::format_consumption_requirements(
     }
 
     const std::vector<pocket_consumption_entry> *entries =
-        type->firing_requirements.for_mode( mode );
+        resolve_firing_entries( *this, mode );
     if( entries == nullptr || entries->empty() ) {
         return std::string();
     }
@@ -2485,7 +2534,7 @@ int item::expected_cost_per_use( const std::string &method ) const
         return ammo_required() * scale;
     }
     const std::vector<pocket_consumption_entry> *entries =
-        type->firing_requirements.for_mode( gun_mode_id( "DEFAULT" ) );
+        type->firing_requirements.for_mode( gun_mode_DEFAULT );
     if( entries == nullptr ) {
         return 0;
     }
@@ -2532,7 +2581,7 @@ int item::tool_uses_remaining( map &here, const Character *carrier ) const
         return shots_remaining( here, carrier );
     }
     const std::vector<pocket_consumption_entry> *entries =
-        type->firing_requirements.for_mode( gun_mode_id( "DEFAULT" ) );
+        type->firing_requirements.for_mode( gun_mode_DEFAULT );
     if( entries == nullptr || entries->empty() ) {
         return 0;
     }
@@ -2548,7 +2597,7 @@ int item::tool_uses_remaining_local() const
         return 0;
     }
     const std::vector<pocket_consumption_entry> *entries =
-        type->firing_requirements.for_mode( gun_mode_id( "DEFAULT" ) );
+        type->firing_requirements.for_mode( gun_mode_DEFAULT );
     if( entries == nullptr || entries->empty() ) {
         return 0;
     }
@@ -2638,7 +2687,7 @@ int item::consume_shots( const gun_mode_id &mode, int shots, map &here,
     }
     if( uses_firing_requirements() ) {
         const std::vector<pocket_consumption_entry> *entries =
-            type->firing_requirements.for_mode( mode );
+            resolve_firing_entries( *this, mode );
         if( entries == nullptr || entries->empty() ) {
             debugmsg( "consume_shots: %s has no firing_requirements entries for mode %s",
                       tname(), mode.str() );
@@ -2672,7 +2721,7 @@ int item::consume_tool_uses( int uses, map &here, const tripoint_bub_ms &pos,
     }
     if( uses_firing_requirements() ) {
         const std::vector<pocket_consumption_entry> *entries =
-            type->firing_requirements.for_mode( gun_mode_id( "DEFAULT" ) );
+            type->firing_requirements.for_mode( gun_mode_DEFAULT );
         if( entries == nullptr || entries->empty() ) {
             debugmsg( "consume_tool_uses: %s has no DEFAULT firing_requirements entries",
                       tname() );
@@ -2695,7 +2744,7 @@ int item::consume_tool_uses( int uses, map &here, const tripoint_bub_ms &pos,
 
 int item::consume_one_shot( map &here, const tripoint_bub_ms &pos, Character *carrier )
 {
-    const gun_mode_id mode = is_gun() ? gun_get_mode_id() : gun_mode_id( "DEFAULT" );
+    const gun_mode_id mode = is_gun() ? gun_get_mode_id() : gun_mode_DEFAULT;
     return consume_shots( mode, 1, here, pos, carrier );
 }
 
@@ -3754,18 +3803,32 @@ int item::charge_linked_batteries( vehicle &linked_veh, int turns_elapsed )
         return 0;
     }
 
+    // Find a battery-flavored magazine to charge; on multimag items only
+    // the battery well is meaningful here.
+    item *parent_mag = nullptr;
+    for( item *mag : magazines_current() ) {
+        if( mag && mag->ammo_capacity( ammo_battery ) > 0 ) {
+            parent_mag = mag;
+            break;
+        }
+    }
     if( !is_battery() ) {
-        const item *parent_mag = magazine_current();
         if( !parent_mag || !parent_mag->has_flag( flag_RECHARGE ) ) {
             return 0;
         }
     }
 
+    const int battery_charges = parent_mag ? parent_mag->ammo_remaining() : ammo_remaining();
+    const int battery_capacity = parent_mag
+                                 ? parent_mag->ammo_capacity( ammo_battery )
+                                 : ammo_capacity( ammo_battery );
     const bool power_in = link().charge_rate > 0;
-    if( power_in ? ammo_remaining( ) >= ammo_capacity( ammo_battery ) :
-        ammo_remaining( ) <= 0 ) {
+    if( power_in ? battery_charges >= battery_capacity : battery_charges <= 0 ) {
         return 0;
     }
+    // Direct receiver for ammo_set so multimag items don't add charges to
+    // the wrong well.
+    item *charge_target = parent_mag ? parent_mag : this;
 
     // Normally efficiency is the chance to get a charge every charge_interval, but if we're catching up from
     // time spent outside the reality bubble it should be applied as a percentage of the total instead.
@@ -3779,7 +3842,7 @@ int item::charge_linked_batteries( vehicle &linked_veh, int turns_elapsed )
 
     if( power_in ) {
         int available_charges = linked_veh.connected_battery_power_level( here ).first;
-        int wanted_charges = ammo_capacity( ammo_battery ) - ammo_remaining( );
+        int wanted_charges = battery_capacity - battery_charges;
 
         // Nothing to charge or nothing to charge with
         if( wanted_charges == 0 || available_charges == 0 ) {
@@ -3790,7 +3853,7 @@ int item::charge_linked_batteries( vehicle &linked_veh, int turns_elapsed )
             // Single charge - subtract one from source, roll against efficiency to add one to destination
             int deficit = linked_veh.discharge_battery( here, 1, true );
             if( deficit == 0 && rng_float( 0.0, 1.0 ) <= link().efficiency ) {
-                ammo_set( itype_battery, ammo_remaining( ) + 1 );
+                charge_target->ammo_set( itype_battery, charge_target->ammo_remaining() + 1 );
             }
         } else {
             // Multiple charges - get minimum from available charges, possible transfer in given time and
@@ -3807,11 +3870,12 @@ int item::charge_linked_batteries( vehicle &linked_veh, int turns_elapsed )
                                    ? wanted_charges
                                    : static_cast<int>( actual_spent * link().efficiency );
 
-            ammo_set( itype_battery, ammo_remaining( ) + received_charges );
+            charge_target->ammo_set( itype_battery,
+                                     charge_target->ammo_remaining() + received_charges );
         }
     } else {
         const auto [bat_remaining, bat_capacity] = linked_veh.connected_battery_power_level( here );
-        int available_charges = ammo_remaining( );
+        int available_charges = battery_charges;
         int wanted_charges = bat_capacity - bat_remaining;
 
         // Nothing to charge or nothing to charge with
@@ -3821,12 +3885,12 @@ int item::charge_linked_batteries( vehicle &linked_veh, int turns_elapsed )
 
         if( short_time_passed ) {
             // Single charge - subtract one from source, roll against efficiency to add one to destination
-            ammo_set( itype_battery, ammo_remaining( ) - 1 );
+            charge_target->ammo_set( itype_battery, charge_target->ammo_remaining() - 1 );
             if( rng_float( 0.0, 1.0 ) <= link().efficiency ) {
                 int surplus = linked_veh.charge_battery( here, 1, true );
                 if( surplus != 0 ) {
                     // Battery couldn't accept the charge, refund it
-                    ammo_set( itype_battery, ammo_remaining( ) + 1 );
+                    charge_target->ammo_set( itype_battery, charge_target->ammo_remaining() + 1 );
                 }
             }
         } else {
@@ -3851,7 +3915,8 @@ int item::charge_linked_batteries( vehicle &linked_veh, int turns_elapsed )
             // Ensure we don't spend more than planned
             actual_spent = std::min( actual_spent, spent_charges );
 
-            ammo_set( itype_battery, ammo_remaining( ) - actual_spent );
+            charge_target->ammo_set( itype_battery,
+                                     charge_target->ammo_remaining() - actual_spent );
         }
     }
     return link().charge_rate;
