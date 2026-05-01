@@ -2663,6 +2663,8 @@ int npc::evaluate_sleep_spot( tripoint_bub_ms p )
     return sleep_eval;
 }
 
+// TODO(multimag): NPC reload desirability still consults legacy scalar
+// helpers and may misclassify multimag weapons.
 static bool wants_to_reload( const npc &guy, const item &candidate )
 {
     if( !candidate.is_reloadable() ) {

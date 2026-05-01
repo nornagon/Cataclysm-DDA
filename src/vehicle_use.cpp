@@ -1898,6 +1898,9 @@ void vpart_position::form_inventory( map &here, inventory &inv ) const
     }
 }
 
+// TODO(multimag): pseudo-item construction here populates only one
+// magazine slot; multimag tools' secondary wells go unpopulated. Multimag
+// vehicle-mounted tool support is blocked on this being redesigned.
 std::pair<const itype_id &, int> vehicle::tool_ammo_available( map &here,
         const itype_id &tool_type ) const
 {
@@ -2485,6 +2488,9 @@ void vehicle::build_interact_menu( veh_menu &menu, map *here, const tripoint_bub
         }
     }
 
+    // TODO(multimag): water_purifier action drains the vehicle battery
+    // directly without instantiating a tool item, so a multimag conversion
+    // of water_purifier needs a separate vehicle-power reconciliation.
     if( vp.part_with_tool( *here, itype_water_purifier ) ) {
         menu.add( _( "Purify water in vehicle tank" ) )
         .enable( fuel_left( *here, itype_water ) &&

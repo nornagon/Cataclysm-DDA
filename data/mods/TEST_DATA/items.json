@@ -5731,5 +5731,99 @@
       { "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
       { "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] }
     ]
+  },
+  {
+    "id": "test_multimag_gun_consume",
+    "type": "ITEM",
+    "subtypes": [ "GUN" ],
+    "name": { "str": "test multimag consume gun" },
+    "description": "Test gun for multimag consumption: 9mm well + battery well, two modes.",
+    "weight": "1000 g",
+    "volume": "1500 ml",
+    "longest_side": "400 mm",
+    "material": [ "steel" ],
+    "symbol": "(",
+    "color": "light_gray",
+    "ammo": [ "9mm" ],
+    "skill": "pistol",
+    "range": 10,
+    "ranged_damage": { "damage_type": "bullet", "amount": 10 },
+    "dispersion": 480,
+    "durability": 10,
+    "flags": [ "NO_TURRET" ],
+    "modes": [ [ "DEFAULT", "default", 1 ], [ "BURST", "burst", 3 ] ],
+    "pocket_data": [
+      { "id": "ammo", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
+      {
+        "id": "power",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "heavy_battery_cell" ]
+      }
+    ],
+    "firing_requirements": {
+      "DEFAULT": [ { "pocket": "ammo", "qty": 1 }, { "pocket": "power", "qty": 5 } ],
+      "BURST": [ { "pocket": "ammo", "qty": 3 }, { "pocket": "power", "qty": 15 } ]
+    }
+  },
+  {
+    "id": "test_multimag_tool_consume",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag consume tool" },
+    "description": "Test tool for multimag consumption: two non-battery wells with consumption_per_use.",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "pocket_data": [
+      { "id": "well_a", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
+      {
+        "id": "well_b",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "stanag30" ]
+      }
+    ],
+    "consumption_per_use": [ { "pocket": "well_a", "qty": 2 }, { "pocket": "well_b", "qty": 1 } ]
+  },
+  {
+    "id": "test_multimag_tool_throttled",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag throttled tool" },
+    "description": "Test active multimag tool with turns_per_charge throttling.",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "turns_per_charge": 5,
+    "pocket_data": [
+      { "id": "well_a", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
+      {
+        "id": "well_b",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "stanag30" ]
+      }
+    ],
+    "consumption_per_use": [ { "pocket": "well_a", "qty": 1 }, { "pocket": "well_b", "qty": 1 } ]
+  },
+  {
+    "id": "test_multimag_tool_factor",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag factor tool" },
+    "description": "Test multimag tool with legacy_charges_per_use_factor for recipe back-compat.",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "legacy_charges_per_use_factor": 5,
+    "pocket_data": [ { "id": "well_a", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] } ],
+    "consumption_per_use": [ { "pocket": "well_a", "qty": 1 } ]
   }
 ]

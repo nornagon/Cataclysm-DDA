@@ -3596,6 +3596,9 @@ bool item::getlight( float &luminance, units::angle &width, units::angle &direct
     return false;
 }
 
+// TODO(multimag): a multimag light-emitting tool with empty pockets will
+// emit free light because this gates on ammo_required(). Fixing this needs
+// a carrier-aware overload + recursive forwarding into gunmod-light path.
 int item::getlight_emit() const
 {
     const map &here = get_map();

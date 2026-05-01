@@ -6700,6 +6700,9 @@ static void use_charges_from_furn( const furn_t &f, const itype_id &type, int &q
         }
     }
 
+    // TODO(multimag): furniture pseudo-tool is built here with a single
+    // ammo_set; multimag furniture-tools need every MAGAZINE_WELL populated.
+    // Workbench/forge-class items can't be converted to multimag yet.
     const itype *itt = f.crafting_pseudo_item_type();
     if( itt != nullptr && itt->tool && !itt->tool->ammo_id.empty() ) {
         const bool using_ammotype = f.has_flag( ter_furn_flag::TFLAG_AMMOTYPE_RELOAD );
