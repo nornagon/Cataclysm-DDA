@@ -8089,8 +8089,8 @@ bodypart_id Character::most_staunchable_bp()
 bodypart_id Character::most_staunchable_bp( int &max_staunch )
 {
     // Calculate max staunchable bleed level
-    // Top out at 20 intensity for base, unencumbered survivors
-    max_staunch = 20;
+    // Top out at 10 intensity for base, unencumbered survivors
+    max_staunch = 10;
     max_staunch *= get_modifier( character_modifier_bleed_staunch_mod );
     add_msg_debug( debugmode::DF_CHARACTER, "Staunch limit after limb score modifier %d", max_staunch );
 
@@ -8210,10 +8210,10 @@ void Character::pause()
         if( bp_id == bodypart_str_id::NULL_ID() ) {
             // We're bleeding, but couldn't find any bp we can staunch
             add_msg_player_or_npc( m_warning,
-                                   _( "Your bleeding is beyond staunching barehanded!  A tourniquet might help." ),
+                                   _( "Your bleeding is beyond staunching barehanded!  Bandaging it or using a tourniquet might help." ),
                                    _( "<npcname>'s bleeding is beyond staunching barehanded!" ) );
         } else {
-            // 5 - 30 sec per turn (with standard hands)
+            // 5 - 20 sec per turn (with standard hands)
             time_duration benefit = 5_turns + 1_turns * max;
             effect &e = get_effect( effect_bleed, bp_id );
             e.mod_duration( - benefit );
