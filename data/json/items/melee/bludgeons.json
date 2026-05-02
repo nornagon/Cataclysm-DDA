@@ -11,7 +11,7 @@
     "price": "250 USD",
     "price_postapoc": "30 USD",
     "to_hit": { "grip": "solid", "length": "long", "surface": "any", "balance": "uneven" },
-    "material": [ "wood", "steel" ],
+    "material": [ "wood", "mc_steel" ],
     "symbol": "\\",
     "color": "dark_gray",
     "techniques": [ "WBLOCK_1", "BRUTAL" ],
