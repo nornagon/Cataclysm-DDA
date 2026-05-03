@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project>
-  <PropertyGroup>
-    <_UseSDL3>false</_UseSDL3>
-    <_UseSDL3 Condition="'$(UseSDL3)'=='true'">true</_UseSDL3>
-  </PropertyGroup>
-</Project>
