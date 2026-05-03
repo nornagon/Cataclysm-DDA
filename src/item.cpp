@@ -1796,6 +1796,16 @@ int item::price( bool practical ) const
         return VisitResponse::NEXT;
     } );
 
+    if( is_gun() ) {
+        for( const item *mod : gunmods() ) {
+            res += mod->price_no_contents( practical );
+        }
+    } else if( is_tool() ) {
+        for( const item *mod : toolmods() ) {
+            res += mod->price_no_contents( practical );
+        }
+    }
+
     return res;
 }
 
