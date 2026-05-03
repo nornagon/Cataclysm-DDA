@@ -1,5 +1,8 @@
 name: "Pull Request Labeler"
 on:
+  # Assuming actions/labeler is safe, then as long as we don't add any
+  # user controller ${{ }} variable interpolation,
+  # Safe to use pull_request_target.
   - pull_request_target
 
 permissions:
@@ -12,7 +15,7 @@ jobs:
       pull-requests: write  # for actions/labeler to add labels to PRs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/labeler@ac9175f8a1f3625fd0d4fb234536d26811351594 # v4
+      - uses: actions/labeler@634933edcd8ababfe52f92936142cc22ac488b1b # v6.0.1
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           # I don't want no bot removing stuff for me
