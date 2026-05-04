@@ -14,12 +14,14 @@
 #include "cata_catch.h"
 #include "cata_utility.h"
 #include "character.h"
+#include "character_attire.h"
 #include "coordinates.h"
 #include "debug.h"
 #include "item.h"
 #include "item_group.h"
 #include "item_location.h"
 #include "item_pocket.h"
+#include "inventory.h"
 #include "inventory_ui.h"
 #include "iteminfo_query.h"
 #include "itype.h"
@@ -33,6 +35,7 @@
 #include "point.h"
 #include "ret_val.h"
 #include "type_id.h"
+#include "units.h"
 #include "visitable.h"
 
 static const gun_mode_id gun_mode_AUTO( "AUTO" );
@@ -60,6 +63,11 @@ static const itype_id itype_test_multimag_gun_consume( "test_multimag_gun_consum
 static const itype_id itype_test_multimag_gun_same_type( "test_multimag_gun_same_type" );
 static const itype_id itype_test_multimag_tool_consume( "test_multimag_tool_consume" );
 static const itype_id itype_test_multimag_tool_factor( "test_multimag_tool_factor" );
+static const itype_id itype_test_multimag_vehicle_welder( "test_multimag_vehicle_welder" );
+static const itype_id itype_UPS( "UPS" );
+static const itype_id itype_UPS_ON( "UPS_ON" );
+static const itype_id itype_oxygen( "oxygen" );
+static const itype_id itype_welding_wire_steel( "welding_wire_steel" );
 
 static item make_loaded_glock()
 {
@@ -1143,6 +1151,26 @@ static item make_multimag_consume_tool( int well_a_charges = 12, int well_b_char
     return tool;
 }
 
+// Multimag USE_UPS welder fixture. power well = battery (heavy_battery_cell mag),
+// oxygen and rod are direct MAGAZINE pockets with ammo_restriction.
+// per_use: power=5, oxygen=2, rod=1.
+static item make_multimag_welder( int batt_charges, int oxygen_qty, int rod_qty )
+{
+    item tool( itype_test_multimag_vehicle_welder );
+    item batt_mag( itype_heavy_battery_cell );
+    batt_mag.put_in( item( itype_battery, calendar::turn, batt_charges ), pocket_type::MAGAZINE );
+    REQUIRE( tool.put_in( batt_mag, pocket_type::MAGAZINE_WELL ).success() );
+    if( oxygen_qty > 0 ) {
+        REQUIRE( tool.put_in( item( itype_oxygen, calendar::turn, oxygen_qty ),
+                              pocket_type::MAGAZINE ).success() );
+    }
+    if( rod_qty > 0 ) {
+        REQUIRE( tool.put_in( item( itype_welding_wire_steel, calendar::turn, rod_qty ),
+                              pocket_type::MAGAZINE ).success() );
+    }
+    return tool;
+}
+
 TEST_CASE( "multimag_predicates",
            "[multimag][consume]" )
 {
@@ -1251,6 +1279,19 @@ TEST_CASE( "consume_shots_and_consume_tool_uses_drain_per_pocket",
         CHECK( got == 1 );
         CHECK( tool.ammo_remaining_in_pocket( "well_a" ) == 10 );
         CHECK( tool.ammo_remaining_in_pocket( "well_b" ) == 0 );
+    }
+
+    SECTION( "direct MAGAZINE oxygen pocket drains alongside MAGAZINE_WELL battery" ) {
+        // Welder per_use: power=5, oxygen=2, rod=1. Single use drains all three.
+        item welder = make_multimag_welder( 100, 20, 5 );
+        REQUIRE( welder.ammo_remaining_in_pocket( "power" ) == 100 );
+        REQUIRE( welder.ammo_remaining_in_pocket( "oxygen" ) == 20 );
+        REQUIRE( welder.ammo_remaining_in_pocket( "rod" ) == 5 );
+        const int got = welder.consume_tool_uses( 1, here, pos, nullptr );
+        CHECK( got == 1 );
+        CHECK( welder.ammo_remaining_in_pocket( "power" ) == 95 );
+        CHECK( welder.ammo_remaining_in_pocket( "oxygen" ) == 18 );
+        CHECK( welder.ammo_remaining_in_pocket( "rod" ) == 4 );
     }
 }
 
@@ -1496,14 +1537,71 @@ TEST_CASE( "charges_of_for_multimag_tool_reports_local_uses",
 {
     clear_avatar();
     Character &chr = get_avatar();
-    // Tool with well_a=12, well_b=30: floor(12/2)=6, 30/1=30 -> 6 uses local.
-    item tool = make_multimag_consume_tool( 12, 30 );
-    item_location loc = chr.i_add( tool );
-    REQUIRE( loc );
 
-    // Inventory aggregation should report the multimag tool's local uses.
-    const int reported = chr.charges_of( itype_test_multimag_tool_consume );
-    CHECK( reported == 6 );
+    SECTION( "no external pool: local-only count" ) {
+        // Tool with well_a=12, well_b=30: floor(12/2)=6, 30/1=30 -> 6 uses local.
+        item tool = make_multimag_consume_tool( 12, 30 );
+        item_location loc = chr.i_add( tool );
+        REQUIRE( loc );
+
+        const int reported = chr.charges_of( itype_test_multimag_tool_consume );
+        CHECK( reported == 6 );
+    }
+
+    SECTION( "routes external UPS pool when item has USE_UPS + battery pocket" ) {
+        // UPS=100 covers 5 uses at per_use=5; oxygen/rod cap at 5.
+        chr.worn.wear_item( chr, item( itype_backpack ), false, false );
+        item_location welder = chr.i_add( make_multimag_welder( 0, 10, 5 ) );
+        REQUIRE( welder );
+
+        item ups( itype_UPS_ON );
+        item ups_mag( ups.magazine_default() );
+        ups_mag.ammo_set( ups_mag.ammo_default(), 100 );
+        REQUIRE( ups.put_in( ups_mag, pocket_type::MAGAZINE_WELL ).success() );
+        chr.i_add( ups );
+        REQUIRE( units::to_kilojoule( chr.available_ups() ) == 100 );
+
+        const int reported = chr.charges_of( itype_test_multimag_vehicle_welder );
+        CHECK( reported == 5 );
+    }
+
+    SECTION( "routes external UPS pool from ground via crafting_inventory" ) {
+        // Ground UPS is not in Character::available_ups(); only the visitable
+        // (crafting_inventory) sees it. apply_external_pools_multimag must
+        // query main, not the character, so a multimag tool reaches it.
+        clear_map();
+        chr.worn.wear_item( chr, item( itype_backpack ), false, false );
+        item_location welder = chr.i_add( make_multimag_welder( 0, 10, 5 ) );
+        REQUIRE( welder );
+        REQUIRE( units::to_kilojoule( chr.available_ups() ) == 0 );
+
+        item ups( itype_UPS_ON );
+        item ups_mag( ups.magazine_default() );
+        ups_mag.ammo_set( ups_mag.ammo_default(), 100 );
+        REQUIRE( ups.put_in( ups_mag, pocket_type::MAGAZINE_WELL ).success() );
+        get_map().add_item_or_charges( chr.pos_bub(), ups );
+
+        const int reported = chr.crafting_inventory().charges_of(
+                                 itype_test_multimag_vehicle_welder );
+        CHECK( reported == 5 );
+    }
+
+    SECTION( "inventory dedup: two multimag USE_UPS welders share one UPS" ) {
+        // Without dedup both tools claim UPS=10 (3+3=6); shared gives 3+1=4.
+        chr.worn.wear_item( chr, item( itype_backpack ), false, false );
+        REQUIRE( chr.i_add( make_multimag_welder( 5, 6, 3 ) ) );
+        REQUIRE( chr.i_add( make_multimag_welder( 5, 6, 3 ) ) );
+
+        item ups( itype_UPS_ON );
+        item ups_mag( ups.magazine_default() );
+        ups_mag.ammo_set( ups_mag.ammo_default(), 10 );
+        REQUIRE( ups.put_in( ups_mag, pocket_type::MAGAZINE_WELL ).success() );
+        chr.i_add( ups );
+        REQUIRE( units::to_kilojoule( chr.available_ups() ) == 10 );
+
+        const int reported = chr.charges_of( itype_test_multimag_vehicle_welder );
+        CHECK( reported == 4 );
+    }
 }
 
 TEST_CASE( "item_action_comparator_ranks_legacy_below_multimag_by_cost",

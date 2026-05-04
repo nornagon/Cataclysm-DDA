@@ -5825,5 +5825,29 @@
     "legacy_charges_per_use_factor": 5,
     "pocket_data": [ { "id": "well_a", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] } ],
     "consumption_per_use": [ { "pocket": "well_a", "qty": 1 } ]
+  },
+  {
+    "id": "test_multimag_vehicle_welder",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag vehicle welder" },
+    "description": "Test multimag pseudo-tool: battery well + oxygen pocket + filler pocket.",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "flags": [ "USE_UPS" ],
+    "pocket_data": [
+      {
+        "id": "power",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "heavy_battery_cell" ]
+      },
+      { "id": "oxygen", "pocket_type": "MAGAZINE", "rigid": true, "airtight": true, "ammo_restriction": { "oxygen": 40 } },
+      { "id": "rod", "pocket_type": "MAGAZINE", "rigid": true, "ammo_restriction": { "components": 40 } }
+    ],
+    "consumption_per_use": [ { "pocket": "power", "qty": 5 }, { "pocket": "oxygen", "qty": 2 }, { "pocket": "rod", "qty": 1 } ]
   }
 ]
