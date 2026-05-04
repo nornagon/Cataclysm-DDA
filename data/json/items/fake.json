@@ -310,6 +310,15 @@
     "extend": { "flags": [ "ALLOWS_REMOTE_USE" ] }
   },
   {
+    "id": "steel_kiln_tool",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "tempering kiln" },
+    "copy-from": "fake_appliance_tool",
+    "charges_per_use": 25,
+    "charged_qualities": [ { "id": "TEMPER", "level": 2, "speed": 0.8 } ]
+  },
+  {
     "id": "glassblowers_crucible_tool",
     "type": "ITEM",
     "subtypes": [ "TOOL" ],

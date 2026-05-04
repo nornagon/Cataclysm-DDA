@@ -1377,6 +1377,11 @@
   },
   {
     "type": "construction_group",
+    "id": "place_steel_kiln",
+    "name": "Place Tempering Kiln"
+  },
+  {
+    "type": "construction_group",
     "id": "place_tablesaw",
     "name": "Place Table Saw"
   },

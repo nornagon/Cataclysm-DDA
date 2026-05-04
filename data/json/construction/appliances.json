@@ -314,6 +314,18 @@
   },
   {
     "type": "construction",
+    "id": "app_steel_kiln",
+    "group": "place_steel_kiln",
+    "category": "APPLIANCE",
+    "required_skills": [ [ "fabrication", 0 ] ],
+    "time": "5 m",
+    "components": [ [ [ "steel_kiln", 1 ] ] ],
+    "pre_special": "check_empty",
+    "post_special": "done_appliance",
+    "activity_level": "LIGHT_EXERCISE"
+  },
+  {
+    "type": "construction",
     "id": "app_arc_furnace",
     "group": "place_arc_furnace",
     "category": "APPLIANCE",

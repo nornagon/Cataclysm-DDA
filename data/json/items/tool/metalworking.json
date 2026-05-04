@@ -635,5 +635,41 @@
     "flags": [ "ALLOWS_REMOTE_USE" ],
     "melee_damage": { "bash": 20 },
     "tool_ammo": [ "propane" ]
+  },
+  {
+    "id": "temper_block",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "tempering block set" },
+    "description": "Two square blocks of steel used for tempering metal via heating the blocks and sandwiching the metal between them.",
+    "weight": "2000 g",
+    "volume": "500 ml",
+    "price": "10 USD",
+    "price_postapoc": "2 USD",
+    "material": [ "mc_steel" ],
+    "color": "dark_gray",
+    "symbol": "B",
+    "qualities": [ { "id": "TEMPER", "level": 1, "speed": 1.2 } ]
+  },
+  {
+    "id": "makeshift_steel_kiln",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "makeshift tempering kiln" },
+    "looks_like": "f_kiln_empty",
+    "description": "A very large brick kiln with a sheet metal shell.  Used for tempering metal of all sizes.",
+    "weight": "80 kg",
+    "volume": "300 L",
+    "longest_side": "160 cm",
+    "price_postapoc": "30 USD",
+    "material": [ "steel" ],
+    "symbol": "B",
+    "color": "light_gray",
+    "flags": [ "ALLOWS_REMOTE_USE", "WATER_BREAK" ],
+    "faults": [ { "fault_group": "electronic_general" } ],
+    "charged_qualities": [ { "id": "TEMPER", "level": 2, "speed": 1.05 } ],
+    "charges_per_use": 30,
+    "use_action": [ { "type": "link_up", "cable_length": 10, "charge_rate": "1600 W" } ],
+    "tool_ammo": [ "battery" ]
   }
 ]

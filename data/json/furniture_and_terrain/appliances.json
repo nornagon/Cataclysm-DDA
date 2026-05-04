@@ -194,6 +194,23 @@
   },
   {
     "type": "vehicle_part",
+    "id": "f_steel_kiln",
+    "name": "tempering kiln",
+    "looks_like": "f_kiln_empty",
+    "color": "light_blue",
+    "categories": [ "utility" ],
+    "description": "A very long electric kiln made for heat treating metal.  Unlike a forge, it can't get extremely hot, but its temperature is completely programmable.",
+    "broken_color": "light_blue",
+    "damage_modifier": 10,
+    "damage_reduction": { "all": 30 },
+    "durability": 80,
+    "flags": [ "APPLIANCE" ],
+    "pseudo_tools": [ { "id": "steel_kiln_tool" } ],
+    "item": "steel_kiln",
+    "variants": [ { "symbols": "8", "symbols_broken": "x" } ]
+  },
+  {
+    "type": "vehicle_part",
     "id": "ap_tablesaw",
     "name": { "str": "table saw" },
     "looks_like": "f_machinery_light",
