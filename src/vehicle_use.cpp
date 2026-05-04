@@ -2048,6 +2048,31 @@ void vehicle::drain_back_multimag( vehicle &veh, map &here, const item &tool,
     }
 }
 
+int vehicle::run_legacy_charge_tool_uses( map &here, const itype_id &tool_type, int uses )
+{
+    if( uses <= 0 || !tool_type->tool ) {
+        return 0;
+    }
+    const int per_use = tool_type->charges_to_use();
+    if( per_use <= 0 ) {
+        return 0;
+    }
+    item tool( tool_type, calendar::turn );
+    const int ammo_in_tool = prepare_tool( here, tool );
+    const int max_uses = ammo_in_tool / per_use;
+    const int do_uses = std::min( uses, max_uses );
+    if( do_uses <= 0 ) {
+        return 0;
+    }
+    const int got_uses = tool.consume_tool_uses( do_uses, here,
+                         tripoint_bub_ms::zero, nullptr );
+    const int consumed = ammo_in_tool - tool.ammo_remaining_linked( here, nullptr );
+    if( consumed > 0 ) {
+        discharge_battery( here, consumed );
+    }
+    return got_uses;
+}
+
 std::pair<const itype_id &, int> vehicle::tool_ammo_available( map &here,
         const itype_id &tool_type ) const
 {
@@ -2674,9 +2699,6 @@ void vehicle::build_interact_menu( veh_menu &menu, map *here, const tripoint_bub
         }
     }
 
-    // TODO(multimag): water_purifier action drains the vehicle battery
-    // directly without instantiating a tool item, so a multimag conversion
-    // of water_purifier needs a separate vehicle-power reconciliation.
     if( vp.part_with_tool( *here, itype_water_purifier ) ) {
         menu.add( _( "Purify water in vehicle tank" ) )
         .enable( fuel_left( *here, itype_water ) &&
@@ -2695,18 +2717,21 @@ void vehicle::build_interact_menu( veh_menu &menu, map *here, const tripoint_bub
                 return;
             }
             vehicle_part &tank = vpr->part();
-            int64_t cost = static_cast<int64_t>( itype_water_purifier->charges_to_use() );
-            if( fuel_left( *here, itype_battery ) < tank.ammo_remaining( ) * cost )
+            const int charges = tank.ammo_remaining();
+            const int64_t per_use = itype_water_purifier->charges_to_use();
+            // All-or-nothing: refuse without burning power if the full batch
+            // does not fit. int64 prevents overflow on large tanks.
+            if( fuel_left( *here, itype_battery ) < static_cast<int64_t>( charges ) * per_use )
             {
                 //~ $1 - vehicle name, $2 - part name
                 add_msg( m_bad, _( "Insufficient power to purify the contents of the %1$s's %2$s" ),
                          name, tank.name() );
             } else
             {
+                run_legacy_charge_tool_uses( *here, itype_water_purifier, charges );
                 //~ $1 - vehicle name, $2 - part name
                 add_msg( m_good, _( "You purify the contents of the %1$s's %2$s" ), name, tank.name() );
-                discharge_battery( *here, tank.ammo_remaining( ) * cost );
-                tank.ammo_set( itype_water_clean, tank.ammo_remaining( ) );
+                tank.ammo_set( itype_water_clean, charges );
             }
         } );
     }

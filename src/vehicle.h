@@ -1966,6 +1966,14 @@ class vehicle
         static void drain_back_multimag( vehicle &veh, map &here, const item &tool,
                                          const std::map<std::string, multimag_pocket_state> &bindings );
 
+        // Run N uses of a legacy charge-driven tool (no implicit pocket) from
+        // the vehicle's battery network. Returns uses actually performed.
+        // Routes the drain through item::consume_tool_uses so the per-use
+        // scalar lives only in the tool's itype, not at vehicle call sites.
+        // TODO(multimag): retire once every legacy charges_per_use tool with
+        // a vehicle-direct-drain caller migrates to firing_requirements.
+        int run_legacy_charge_tool_uses( map &here, const itype_id &tool_type, int uses );
+
         /**
         * @return pseudo- and attached tools available from this vehicle part,
         * marked with PSEUDO flags, pseudo_magazine_mod and pseudo_magazine attached, magazines filled

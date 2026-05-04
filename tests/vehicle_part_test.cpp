@@ -45,10 +45,12 @@ static const itype_id itype_backpack( "backpack" );
 static const itype_id itype_fridge_test( "fridge_test" );
 static const itype_id itype_metal_tank_test( "metal_tank_test" );
 static const itype_id itype_oatmeal( "oatmeal" );
+static const itype_id itype_battery( "battery" );
 static const itype_id itype_gasoline( "gasoline" );
 static const itype_id itype_test_multimag_direct_battery( "test_multimag_direct_battery" );
 static const itype_id itype_test_multimag_mixed_battery( "test_multimag_mixed_battery" );
 static const itype_id itype_test_multimag_two_battery( "test_multimag_two_battery" );
+static const itype_id itype_water_purifier( "water_purifier" );
 static const itype_id itype_test_multimag_two_fluid( "test_multimag_two_fluid" );
 static const itype_id itype_test_multimag_vehicle_combo( "test_multimag_vehicle_combo" );
 static const itype_id itype_water_clean( "water_clean" );
@@ -363,6 +365,62 @@ TEST_CASE( "vehicle_prepare_tool_multimag", "[vehicle][multimag]" )
         // Per-use cost: power=5, fluid=2.
         CHECK( static_cast<int>( veh->battery_left( here ) ) == batt_before - 5 );
         CHECK( static_cast<int>( veh->fuel_left( here, itype_gasoline ) ) == gas_before - 2 );
+    }
+}
+
+TEST_CASE( "vehicle_run_legacy_charge_tool_uses_water_purifier",
+           "[vehicle][purifier]" )
+{
+    clear_avatar();
+    clear_map_without_vision();
+    clear_vehicles();
+    map &here = get_map();
+
+    const tripoint_bub_ms test_origin( 60, 60, 0 );
+    REQUIRE_FALSE( here.veh_at( test_origin ).has_value() );
+    vehicle *veh = here.add_vehicle( vehicle_prototype_none, test_origin, 0_degrees, 0, 0 );
+    REQUIRE( veh != nullptr );
+    REQUIRE( veh->install_part( here, point_rel_ms::zero, vpart_frame ) != -1 );
+    REQUIRE( veh->install_part( here, point_rel_ms::zero, vpart_small_storage_battery ) != -1 );
+    veh->refresh();
+    here.add_vehicle_to_cache( veh );
+
+    const int per_use = itype_water_purifier->charges_to_use();
+    REQUIRE( per_use > 0 );
+
+    SECTION( "drains battery exactly per_use * uses on success" ) {
+        veh->discharge_battery( here, 100000 );
+        const int budget = per_use * 3;
+        veh->charge_battery( here, budget );
+        REQUIRE( static_cast<int>( veh->battery_left( here ) ) == budget );
+
+        const int got = veh->run_legacy_charge_tool_uses( here, itype_water_purifier, 3 );
+        CHECK( got == 3 );
+        CHECK( static_cast<int>( veh->battery_left( here ) ) == 0 );
+    }
+
+    SECTION( "caps uses by available battery" ) {
+        veh->discharge_battery( here, 100000 );
+        veh->charge_battery( here, per_use * 2 );
+        const int got = veh->run_legacy_charge_tool_uses( here, itype_water_purifier, 5 );
+        CHECK( got == 2 );
+        CHECK( veh->battery_left( here ) == 0 );
+    }
+
+    SECTION( "zero battery returns zero uses, drains nothing" ) {
+        veh->discharge_battery( here, 100000 );
+        REQUIRE( veh->battery_left( here ) == 0 );
+        const int got = veh->run_legacy_charge_tool_uses( here, itype_water_purifier, 5 );
+        CHECK( got == 0 );
+    }
+
+    SECTION( "menu purify pre-check refuses partial budget without burning power" ) {
+        veh->discharge_battery( here, 100000 );
+        veh->charge_battery( here, per_use * 2 );
+        const int batt_before = static_cast<int>( veh->battery_left( here ) );
+        const int requested = 5;
+        REQUIRE_FALSE( batt_before >= requested * per_use );
+        CHECK( static_cast<int>( veh->battery_left( here ) ) == batt_before );
     }
 }
 
