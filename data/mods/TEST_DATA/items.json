@@ -5845,9 +5845,129 @@
         "pocket_type": "MAGAZINE_WELL",
         "item_restriction": [ "heavy_battery_cell" ]
       },
-      { "id": "oxygen", "pocket_type": "MAGAZINE", "rigid": true, "airtight": true, "ammo_restriction": { "oxygen": 40 } },
+      {
+        "id": "oxygen",
+        "pocket_type": "MAGAZINE",
+        "rigid": true,
+        "airtight": true,
+        "ammo_restriction": { "oxygen": 40 }
+      },
       { "id": "rod", "pocket_type": "MAGAZINE", "rigid": true, "ammo_restriction": { "components": 40 } }
     ],
     "consumption_per_use": [ { "pocket": "power", "qty": 5 }, { "pocket": "oxygen", "qty": 2 }, { "pocket": "rod", "qty": 1 } ]
+  },
+  {
+    "id": "test_multimag_vehicle_combo",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag vehicle combo" },
+    "description": "Test multimag pseudo-tool: battery well + tank pocket (gasoline).",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "pocket_data": [
+      {
+        "id": "power",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "heavy_battery_cell" ]
+      },
+      {
+        "id": "fluid",
+        "pocket_type": "MAGAZINE",
+        "rigid": true,
+        "watertight": true,
+        "ammo_restriction": { "gasoline": 40 }
+      }
+    ],
+    "consumption_per_use": [ { "pocket": "power", "qty": 5 }, { "pocket": "fluid", "qty": 2 } ]
+  },
+  {
+    "id": "test_multimag_two_battery",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag two battery" },
+    "description": "Test multimag pseudo-tool with two battery wells sharing one network.",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "pocket_data": [
+      {
+        "id": "left",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "heavy_battery_cell" ]
+      },
+      {
+        "id": "right",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "heavy_battery_cell" ]
+      }
+    ],
+    "consumption_per_use": [ { "pocket": "left", "qty": 5 }, { "pocket": "right", "qty": 5 } ]
+  },
+  {
+    "id": "test_multimag_two_fluid",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag two fluid" },
+    "description": "Test multimag pseudo-tool with two same-fuel tank pockets.",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "pocket_data": [
+      { "id": "left", "pocket_type": "MAGAZINE", "rigid": true, "watertight": true, "ammo_restriction": { "gasoline": 40 } },
+      {
+        "id": "right",
+        "pocket_type": "MAGAZINE",
+        "rigid": true,
+        "watertight": true,
+        "ammo_restriction": { "gasoline": 40 }
+      }
+    ],
+    "consumption_per_use": [ { "pocket": "left", "qty": 2 }, { "pocket": "right", "qty": 2 } ]
+  },
+  {
+    "id": "test_multimag_direct_battery",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag direct battery" },
+    "description": "Test multimag pseudo-tool with one direct MAGAZINE battery pocket.",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "pocket_data": [ { "id": "core", "pocket_type": "MAGAZINE", "rigid": true, "ammo_restriction": { "battery": 40 } } ],
+    "consumption_per_use": [ { "pocket": "core", "qty": 5 } ]
+  },
+  {
+    "id": "test_multimag_mixed_battery",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag mixed battery" },
+    "description": "Test multimag pseudo-tool with one MAGAZINE_WELL and one direct MAGAZINE battery pocket.",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "pocket_data": [
+      {
+        "id": "well",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "heavy_battery_cell" ]
+      },
+      { "id": "direct", "pocket_type": "MAGAZINE", "rigid": true, "ammo_restriction": { "battery": 40 } }
+    ],
+    "consumption_per_use": [ { "pocket": "well", "qty": 5 }, { "pocket": "direct", "qty": 3 } ]
   }
 ]

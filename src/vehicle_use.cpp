@@ -23,6 +23,7 @@
 #include "dialogue.h"
 #include "effect_on_condition.h"
 #include "enums.h"
+#include "flat_set.h"
 #include "game.h"
 #include "game_inventory.h"
 #include "gates.h"
@@ -30,6 +31,7 @@
 #include "iexamine.h"
 #include "inventory.h"
 #include "item.h"
+#include "item_pocket.h"
 #include "itype.h"
 #include "iuse.h"
 #include "map.h"
@@ -1898,9 +1900,154 @@ void vpart_position::form_inventory( map &here, inventory &inv ) const
     }
 }
 
-// TODO(multimag): pseudo-item construction here populates only one
-// magazine slot; multimag tools' secondary wells go unpopulated. Multimag
-// vehicle-mounted tool support is blocked on this being redesigned.
+static const gun_mode_id gun_mode_DEFAULT( "DEFAULT" );
+
+std::map<std::string, vehicle::multimag_pocket_state>
+vehicle::prepare_multimag_pockets( vehicle &veh, map &here, item &tool )
+{
+    using state_t = vehicle::multimag_pocket_state;
+    std::map<std::string, state_t> out;
+    if( !tool.uses_firing_requirements() ) {
+        return out;
+    }
+    const std::vector<pocket_consumption_entry> *entries =
+        tool.type->firing_requirements.for_mode( gun_mode_DEFAULT );
+    if( entries == nullptr ) {
+        return out;
+    }
+    // Accumulate "claimed" budget per source so two pockets cannot double-load
+    // the same store. Battery network is a single global pool; tanks track
+    // per vpart index so live per-part reads stay accurate.
+    int battery_claimed = 0;
+    std::map<int, int> tank_claimed_by_vpart;
+
+    for( const pocket_consumption_entry &pce : *entries ) {
+        item_pocket *pkt = tool.pocket_by_id( pce.pocket );
+        if( pkt == nullptr ) {
+            continue;
+        }
+        const pocket_data *pdat = pkt->get_pocket_data();
+        if( pdat == nullptr ) {
+            continue;
+        }
+
+        if( tool.pocket_accepts_battery( pkt ) ) {
+            const int batt_total = static_cast<int>(
+                                       std::min<int64_t>( veh.battery_left( here ), INT_MAX ) );
+            const int batt_avail = std::max( 0, batt_total - battery_claimed );
+            if( pdat->type == pocket_type::MAGAZINE_WELL ) {
+                itype_id mag_type = pdat->default_magazine;
+                if( mag_type.is_null() && !pdat->item_id_restriction.empty() ) {
+                    mag_type = *pdat->item_id_restriction.begin();
+                }
+                if( mag_type.is_null() ) {
+                    continue;
+                }
+                item mag( mag_type );
+                mag.clear_items();
+                const int cap = mag.ammo_capacity( ammo_battery );
+                const int set_qty = std::min( batt_avail, cap );
+                mag.ammo_set( itype_battery, set_qty );
+                if( pkt->insert_item( mag ).success() ) {
+                    battery_claimed += set_qty;
+                    state_t st;
+                    st.kind = state_t::source_kind::BATTERY;
+                    st.initial_qty = tool.ammo_remaining_in_pocket( pce.pocket );
+                    out.emplace( pce.pocket, st );
+                }
+            } else if( pdat->type == pocket_type::MAGAZINE ) {
+                // Direct MAGAZINE battery pocket: insert raw battery items
+                // capped by the pocket's own capacity (no synthesized mag).
+                const int set_qty = std::min( batt_avail,
+                                              pkt->remaining_ammo_capacity( ammo_battery ) );
+                if( set_qty > 0 ) {
+                    item ammo_it( itype_battery, calendar::turn, set_qty );
+                    if( pkt->insert_item( ammo_it ).success() ) {
+                        battery_claimed += set_qty;
+                        state_t st;
+                        st.kind = state_t::source_kind::BATTERY;
+                        st.initial_qty = tool.ammo_remaining_in_pocket( pce.pocket );
+                        out.emplace( pce.pocket, st );
+                    }
+                }
+            }
+            continue;
+        }
+        if( pdat->type != pocket_type::MAGAZINE || pdat->ammo_restriction.empty() ) {
+            continue;
+        }
+
+        bool placed = false;
+        for( const std::pair<const ammotype, int> &ar : pdat->ammo_restriction ) {
+            // Scan tanks first; record the exact vpart and ammo itype so
+            // drain_back_multimag bills the same store with no re-search.
+            for( const vpart_reference &tvp :
+                 veh.get_avail_parts( vpart_bitflags::VPFLAG_FLUIDTANK ) ) {
+                const itype_id &tank_ammo = tvp.part().ammo_current();
+                if( tank_ammo.is_null() || !tank_ammo->ammo ) {
+                    continue;
+                }
+                if( tank_ammo->ammo->type != ar.first ) {
+                    continue;
+                }
+                const int vp_idx = static_cast<int>( tvp.part_index() );
+                // Per-part ammo so two same-fuel tanks each have their own
+                // budget; whole-vehicle fuel_left would let two pockets
+                // double-claim the same global total.
+                const int total = tvp.part().ammo_remaining();
+                const int avail = std::max( 0, total - tank_claimed_by_vpart[vp_idx] );
+                if( avail <= 0 ) {
+                    continue;
+                }
+                const int set_qty = std::min( avail, ar.second );
+                item ammo_it( tank_ammo, calendar::turn, set_qty );
+                if( pkt->insert_item( ammo_it ).success() ) {
+                    tank_claimed_by_vpart[vp_idx] += set_qty;
+                    state_t st;
+                    st.kind = state_t::source_kind::TANK;
+                    st.vpart_index = vp_idx;
+                    st.initial_qty = tool.ammo_remaining_in_pocket( pce.pocket );
+                    out.emplace( pce.pocket, st );
+                    placed = true;
+                    break;
+                }
+            }
+            if( placed ) {
+                break;
+            }
+        }
+    }
+    return out;
+}
+
+void vehicle::drain_back_multimag( vehicle &veh, map &here, const item &tool,
+                                   const std::map<std::string, multimag_pocket_state> &bindings )
+{
+    using state_t = multimag_pocket_state;
+    if( !tool.uses_firing_requirements() ) {
+        return;
+    }
+    for( const std::pair<const std::string, state_t> &b : bindings ) {
+        const std::string &pocket_id = b.first;
+        const state_t &st = b.second;
+        const int after = tool.ammo_remaining_in_pocket( pocket_id );
+        const int delta = st.initial_qty - after;
+        if( delta <= 0 ) {
+            continue;
+        }
+        switch( st.kind ) {
+            case state_t::source_kind::BATTERY:
+                veh.discharge_battery( here, delta );
+                break;
+            case state_t::source_kind::TANK:
+                if( st.vpart_index >= 0 ) {
+                    veh.drain( here, st.vpart_index, delta );
+                }
+                break;
+        }
+    }
+}
+
 std::pair<const itype_id &, int> vehicle::tool_ammo_available( map &here,
         const itype_id &tool_type ) const
 {
@@ -1923,6 +2070,18 @@ std::pair<const itype_id &, int> vehicle::tool_ammo_available( map &here,
 int vehicle::prepare_tool( map &here, item &tool ) const
 {
     tool.set_flag( json_flag_PSEUDO );
+
+    if( tool.uses_firing_requirements() ) {
+        // const_cast is safe: prepare_multimag_pockets only mutates the tool
+        // and re-reads vehicle state. It does not modify vehicle storage.
+        const std::map<std::string, vehicle::multimag_pocket_state> bindings =
+            vehicle::prepare_multimag_pockets( const_cast<vehicle &>( *this ), here, tool );
+        int total = 0;
+        for( const std::pair<const std::string, vehicle::multimag_pocket_state> &b : bindings ) {
+            total = std::min( INT_MAX - b.second.initial_qty, total ) + b.second.initial_qty;
+        }
+        return total;
+    }
 
     const auto &[ammo_itype_id, ammo_amount] = tool_ammo_available( here, tool.typeId() );
     if( ammo_itype_id.is_null() ) {
@@ -1964,12 +2123,27 @@ bool vehicle::use_vehicle_tool( vehicle &veh, map *here, const tripoint_bub_ms &
                                 bool no_invoke )
 {
     item tool( tool_type, calendar::turn );
-    const auto &[ammo_type_id, avail_ammo_amount] = veh.tool_ammo_available( *here, tool_type );
-    const int ammo_in_tool = veh.prepare_tool( *here, tool );
-    const bool is_battery_tool = !ammo_type_id.is_null() && ammo_type_id->ammo->type == ammo_battery;
-    if( tool.ammo_required() > avail_ammo_amount ) {
-        return false;
+    const bool is_multimag = !tool_type->firing_requirements.empty();
+    std::map<std::string, vehicle::multimag_pocket_state> mm_bindings;
+    int ammo_in_tool = 0;
+    int avail_ammo_amount = 0;
+    itype_id ammo_type_id = itype_id::NULL_ID();
+    if( is_multimag ) {
+        tool.set_flag( json_flag_PSEUDO );
+        mm_bindings = vehicle::prepare_multimag_pockets( veh, *here, tool );
+        if( tool.feasible_tool_uses( /*external_pool=*/0 ) < 1 ) {
+            return false;
+        }
+    } else {
+        const auto &[type_id, amount] = veh.tool_ammo_available( *here, tool_type );
+        ammo_type_id = type_id;
+        avail_ammo_amount = amount;
+        ammo_in_tool = veh.prepare_tool( *here, tool );
+        if( tool.ammo_required() > avail_ammo_amount ) {
+            return false;
+        }
     }
+    const bool is_battery_tool = !ammo_type_id.is_null() && ammo_type_id->ammo->type == ammo_battery;
     if( !no_invoke ) {
         // TODO: pass map or go abs
         get_player_character().invoke_item( &tool, vp_pos );
@@ -1995,13 +2169,17 @@ bool vehicle::use_vehicle_tool( vehicle &veh, map *here, const tripoint_bub_ms &
         act.coords.push_back( here->get_abs( vp_pos ) );
     }
 
-    const int used_charges = ammo_in_tool - tool.ammo_remaining_linked( *here, nullptr );
-    if( used_charges > 0 ) {
-        if( is_battery_tool ) {
-            // if tool has less battery charges than it started with - discharge from vehicle batteries
-            veh.discharge_battery( *here, used_charges );
-        } else {
-            veh.drain( here, tool.ammo_current(), used_charges );
+    if( is_multimag ) {
+        drain_back_multimag( veh, *here, tool, mm_bindings );
+    } else {
+        const int used_charges = ammo_in_tool - tool.ammo_remaining_linked( *here, nullptr );
+        if( used_charges > 0 ) {
+            if( is_battery_tool ) {
+                // if tool has less battery charges than it started with - discharge from vehicle batteries
+                veh.discharge_battery( *here, used_charges );
+            } else {
+                veh.drain( here, tool.ammo_current(), used_charges );
+            }
         }
     }
     return true;
@@ -2368,8 +2546,16 @@ void vehicle::build_interact_menu( veh_menu &menu, map *here, const tripoint_bub
             continue; // skip old passive tools
         }
         const auto &[tool_ammo, ammo_amount ] = tool_ammo_available( *here, tool_type );
+        bool enabled;
+        if( !tool_type->firing_requirements.empty() ) {
+            item tmp( tool_type, calendar::turn );
+            prepare_tool( *here, tmp );
+            enabled = tmp.feasible_tool_uses( /*external_pool=*/0 ) >= 1;
+        } else {
+            enabled = ammo_amount >= tool_item.typeId()->charges_to_use();
+        }
         menu.add( string_format( _( "Use %s" ), tool_type->nname( 1 ) ) )
-        .enable( ammo_amount >= tool_item.typeId()->charges_to_use() )
+        .enable( enabled )
         .hotkey( hk )
         .skip_locked_check( tool_ammo.is_null() || tool_ammo->ammo->type != ammo_battery )
         .on_submit( [this, vppos, tool_type, here] { use_vehicle_tool( *this, here, vppos, tool_type ); } );

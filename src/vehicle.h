@@ -1949,6 +1949,23 @@ class vehicle
         * @return a pair of tool's first ammo type and the amount of it available from tanks / batteries
         */
         std::pair<const itype_id &, int> tool_ammo_available( map &here, const itype_id &tool_type ) const;
+
+        // Multimag pseudo-tool support.
+        struct multimag_pocket_state {
+            enum class source_kind { BATTERY, TANK };
+            int initial_qty = 0;
+            source_kind kind = source_kind::BATTERY;
+            int vpart_index = -1;
+        };
+        // Populates every consumption-schema pocket of a multimag tool from
+        // vehicle batteries or tanks and returns per-pocket source bindings
+        // keyed by pocket id. drain_back_multimag must consume the returned
+        // map verbatim to keep prep and drain billing the same store.
+        static std::map<std::string, multimag_pocket_state> prepare_multimag_pockets(
+            vehicle &veh, map &here, item &tool );
+        static void drain_back_multimag( vehicle &veh, map &here, const item &tool,
+                                         const std::map<std::string, multimag_pocket_state> &bindings );
+
         /**
         * @return pseudo- and attached tools available from this vehicle part,
         * marked with PSEUDO flags, pseudo_magazine_mod and pseudo_magazine attached, magazines filled
