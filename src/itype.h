@@ -104,6 +104,32 @@ class gunmod_location
         }
 };
 
+struct pocket_consumption_entry {
+    std::string pocket;
+    int qty = 0;
+
+    bool was_loaded = false;
+    void deserialize( const JsonObject &jo );
+};
+
+// Tools lower consumption_per_use into per_mode[DEFAULT]; guns use the
+// firing_requirements map directly.
+struct firing_requirement_set {
+    std::map<gun_mode_id, std::vector<pocket_consumption_entry>> per_mode;
+
+    bool empty() const {
+        return per_mode.empty();
+    }
+    const std::vector<pocket_consumption_entry> *for_mode( const gun_mode_id &m ) const {
+        const auto it = per_mode.find( m );
+        return it == per_mode.end() ? nullptr : &it->second;
+    }
+
+    bool was_loaded = false;
+    void deserialize_firing_requirements( const JsonObject &jo, std::string_view member );
+    void deserialize_consumption_per_use( const JsonObject &jo, std::string_view member );
+};
+
 struct islot_tool {
     std::set<ammotype> ammo_id;
 
@@ -1354,6 +1380,14 @@ struct itype {
 
         // information related to being able to store things inside the item.
         std::vector<pocket_data> pockets;
+
+        // Empty for legacy items. Tools use DEFAULT mode; guns use per-mode
+        // entries from the JSON map.
+        firing_requirement_set firing_requirements;
+        // Set on multimag tools converted from legacy charges_per_use > 1
+        // so existing recipes that pass raw charge counts get translated to
+        // uses without re-baselining recipe data.
+        int legacy_charges_per_use_factor = 1;
 
         // What it has to say.
         std::vector<std::string> chat_topics;

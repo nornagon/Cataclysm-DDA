@@ -1582,9 +1582,10 @@ std::string item::display_name( unsigned int quantity ) const
             return p.is_type( pocket_type::MAGAZINE_WELL );
         } );
         if( well_pockets.size() > 1 ) {
-            // Multi-well: show every well, loaded or not.
-            const bool show_ammo_name = is_gun() && ammo_required() &&
-                                        get_option<bool>( "AMMO_IN_NAMES" );
+            // Multi-well: show every well, loaded or not. Per-well ammo
+            // labels are essential when distinct ammotypes share the same
+            // host item, so they ignore AMMO_IN_NAMES.
+            const bool show_ammo_name = true;
             std::vector<std::string> segments;
             for( const item_pocket *p : well_pockets ) {
                 const item *mag = p->magazine_current();
@@ -1693,7 +1694,7 @@ std::string item::display_name( unsigned int quantity ) const
     }
 
     std::string ammotext;
-    if( !is_ammo() && ( ( is_gun() && ammo_required() ) || is_magazine() ) &&
+    if( !is_ammo() && ( ( is_gun() && needs_charges_to_use() ) || is_magazine() ) &&
         get_option<bool>( "AMMO_IN_NAMES" ) ) {
         if( !ammo_current().is_null() ) {
             // Loaded with ammo
@@ -3606,6 +3607,9 @@ bool item::getlight( float &luminance, units::angle &width, units::angle &direct
     return false;
 }
 
+// TODO(multimag): a multimag light-emitting tool with empty pockets will
+// emit free light because this gates on ammo_required(). Fixing this needs
+// a carrier-aware overload + recursive forwarding into gunmod-light path.
 int item::getlight_emit() const
 {
     const map &here = get_map();
@@ -3861,8 +3865,22 @@ bool item::use_charges( const itype_id &what, int &qty, std::list<item> &used,
 
         if( e->is_tool() || e->is_gun() ) {
             if( e->typeId() == what || ( in_tools && e->ammo_current() == what ) ) {
-                int n;
-                if( carrier ) {
+                int n = 0;
+                if( e->uses_firing_requirements() ) {
+                    // Translate raw charges to uses; hard-fail on
+                    // non-divisible to surface mis-baselined recipes.
+                    const int factor = e->type ? e->type->legacy_charges_per_use_factor : 1;
+                    if( factor < 1 || qty % factor != 0 ) {
+                        debugmsg( "use_charges: %s requested %d charges with "
+                                  "legacy_charges_per_use_factor %d (not a multiple); "
+                                  "recipe / caller needs to be re-baselined to uses",
+                                  e->tname(), qty, factor );
+                        return VisitResponse::NEXT;
+                    }
+                    const int wanted_uses = qty / factor;
+                    const int got_uses = e->consume_tool_uses( wanted_uses, get_map(), pos, carrier );
+                    n = got_uses * factor;
+                } else if( carrier ) {
                     n = e->ammo_consume( qty, pos, carrier );
                 } else {
                     n = e->ammo_consume( qty, pos, nullptr );

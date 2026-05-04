@@ -1169,6 +1169,10 @@ class activatable_inventory_preset : public pickup_inventory_preset
 
             if( uses.size() == 1 &&
                 !it.ammo_sufficient( &you, uses.begin()->first ) ) {
+                if( it.uses_firing_requirements() ) {
+                    return string_format( _( "Needs at least: %s." ),
+                                          it.format_consumption_requirements( uses.begin()->first ) );
+                }
                 return string_format(
                            n_gettext( "Needs at least %d charge.",
                                       "Needs at least %d charges.", loc->ammo_required() ),
@@ -1382,6 +1386,10 @@ class ereader_inventory_preset : public pickup_inventory_preset
             }
 
             if( !it.ammo_sufficient( &you, "EBOOKREAD" ) ) {
+                if( it.uses_firing_requirements() ) {
+                    return string_format( _( "Needs at least: %s." ),
+                                          it.format_consumption_requirements( "EBOOKREAD" ) );
+                }
                 return string_format(
                            n_gettext( "Needs at least %d charge.",
                                       "Needs at least %d charges.", loc->ammo_required() ),

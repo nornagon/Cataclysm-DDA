@@ -3352,7 +3352,7 @@ static bool chop_plank_activity( Character &you, const tripoint_bub_ms &src_loc 
         return false;
     }
     if( best_qual.type->can_have_charges() ) {
-        you.consume_charges( best_qual, best_qual.type->charges_to_use() );
+        best_qual.consume_tool_uses( 1, get_map(), you.pos_bub(), &you );
     }
     map &here = get_map();
     for( item &i : here.i_at( src_loc ) ) {
@@ -3446,7 +3446,7 @@ static bool chop_tree_activity( Character &you, const tripoint_bub_ms &src_loc )
     }
     int moves = chop_moves( you, best_qual );
     if( best_qual.type->can_have_charges() ) {
-        you.consume_charges( best_qual, best_qual.type->charges_to_use() );
+        best_qual.consume_tool_uses( 1, get_map(), you.pos_bub(), &you );
     }
     map &here = get_map();
     const ter_id &ter = here.ter( src_loc );

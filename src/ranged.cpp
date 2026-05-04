@@ -1273,20 +1273,33 @@ int Character::fire_gun( map &here, const tripoint_bub_ms &target, int shots, it
             }
         }
 
-        const int required = gun.ammo_required();
-        if( gun.ammo_consume( required, here, pos_bub( here ), this ) != required ) {
-            debugmsg( "Unexpected shortage of ammo whilst firing %s", gun.tname() );
-            break;
-        }
-
-        // Vehicle turrets drain vehicle battery and do not care about this
-        if( !gun.has_flag( flag_VEHICLE ) ) {
-            const units::energy energ_req = gun.get_gun_energy_drain();
-            const units::energy drained = gun.energy_consume( energ_req, &here, pos_bub( here ), this );
-            if( drained < energ_req ) {
-                debugmsg( "Unexpected shortage of energy whilst firing %s. Required: %i J, drained: %i J",
-                          gun.tname(), units::to_joule( energ_req ), units::to_joule( drained ) );
+        if( gun.uses_firing_requirements() ) {
+            // Turret install is filtered out at mountable_gun_filter; this
+            // catches debug-spawn or save-state pairings that bypass it.
+            if( gun.has_flag( flag_VEHICLE ) ) {
+                debugmsg( "TODO(multimag): turret + firing_requirements not "
+                          "supported, B2 reconciliation pending (%s)", gun.tname() );
                 break;
+            }
+            if( gun.consume_one_shot( here, pos_bub( here ), this ) != 1 ) {
+                debugmsg( "Unexpected shortage of ammo whilst firing %s", gun.tname() );
+                break;
+            }
+        } else {
+            const int required = gun.ammo_required();
+            if( gun.ammo_consume( required, here, pos_bub( here ), this ) != required ) {
+                debugmsg( "Unexpected shortage of ammo whilst firing %s", gun.tname() );
+                break;
+            }
+            // Vehicle turrets drain vehicle battery and do not care about this
+            if( !gun.has_flag( flag_VEHICLE ) ) {
+                const units::energy energ_req = gun.get_gun_energy_drain();
+                const units::energy drained = gun.energy_consume( energ_req, &here, pos_bub( here ), this );
+                if( drained < energ_req ) {
+                    debugmsg( "Unexpected shortage of energy whilst firing %s. Required: %i J, drained: %i J",
+                              gun.tname(), units::to_joule( energ_req ), units::to_joule( drained ) );
+                    break;
+                }
             }
         }
 
@@ -4547,6 +4560,11 @@ bool gunmode_checks_weapon( avatar &you, const map &m, std::vector<std::string> 
         !gmode->has_flag( flag_RELOAD_AND_SHOOT ) ) {
         if( !gmode->ammo_remaining( ) ) {
             messages.push_back( string_format( _( "Your %s is empty!" ), gmode->tname() ) );
+        } else if( gmode->uses_firing_requirements() ) {
+            messages.push_back( string_format( _( "Your %s needs to fire: %s." ),
+                                               gmode->tname(),
+                                               gmode->format_consumption_requirements(
+                                                   /*method=*/"", gmode->gun_get_mode_id() ) ) );
         } else {
             messages.push_back( string_format( _( "Your %s needs %i charges to fire!" ),
                                                gmode->tname(), gmode->ammo_required() ) );

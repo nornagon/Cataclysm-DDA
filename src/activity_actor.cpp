@@ -1012,10 +1012,10 @@ static hack_result hack_attempt( Character &who, item_location &tool )
     int success = std::ceil( normal_roll( hack_level( who, tool ), hack_stddev ) );
     if( success < 0 ) {
         who.add_msg_if_player( _( "You cause a short circuit!" ) );
-        tool->ammo_consume( tool->ammo_required(), here, tool.pos_bub( here ), &who );
+        tool->consume_tool_uses( 1, here, tool.pos_bub( here ), &who );
 
         if( success <= -5 ) {
-            tool->ammo_consume( ( tool->ammo_required() * 2 ), here, tool.pos_bub( here ), &who );
+            tool->consume_tool_uses( 2, here, tool.pos_bub( here ), &who );
         }
         return hack_result::FAIL;
     } else if( success < 6 ) {
@@ -1148,7 +1148,12 @@ void bookbinder_copy_activity_actor::finish( player_activity &act, Character &p 
 
         const std::vector<const item *> writing_tools_filter =
         p.crafting_inventory().items_with( [&]( const item & it ) {
-            return it.has_flag( flag_WRITE_MESSAGE ) && it.ammo_remaining( ) >= it.ammo_required() ;
+            // Match the local-only crafting drain so the filter doesn't pick
+            // a multimag tool that ammo_sufficient counts via UPS/bionic.
+            const bool enough = it.uses_firing_requirements()
+                                ? ( !it.needs_charges_to_use() || it.tool_uses_remaining_local() > 0 )
+                                : it.ammo_sufficient( &p );
+            return it.has_flag( flag_WRITE_MESSAGE ) && enough;
         } );
 
         std::vector<tool_comp> writing_tools;
@@ -1337,13 +1342,10 @@ void hacksaw_activity_actor::do_turn( player_activity &act, Character &who )
 
     if( !veh_pos.has_value() ) {
         if( tool->ammo_sufficient( &who, method ) ) {
-            int ammo_consumed = tool->ammo_required();
             std::map<std::string, int>::const_iterator iter = tool->type->ammo_scale.find( method );
-            if( iter != tool->type->ammo_scale.end() ) {
-                ammo_consumed *= iter->second;
-            }
+            const int uses = iter == tool->type->ammo_scale.end() ? 1 : iter->second;
 
-            tool->ammo_consume( ammo_consumed, here, tool.pos_bub( here ), &who );
+            tool->consume_tool_uses( uses, here, tool.pos_bub( here ), &who );
             sfx::play_activity_sound( "tool", "hacksaw", sfx::get_heard_volume( target ) );
             if( calendar::once_every( 1_minutes ) ) {
                 //~ Sound of a metal sawing tool at work!
@@ -1448,7 +1450,7 @@ void hacksaw_activity_actor::finish( player_activity &act, Character &who )
 
 float hacksaw_activity_actor::exertion_level() const
 {
-    if( tool->ammo_required() ) {
+    if( tool->needs_charges_to_use() ) {
         return LIGHT_EXERCISE;
     } else {
         return get_type()->exertion_level();
@@ -2121,7 +2123,7 @@ void read_activity_actor::start( player_activity &act, Character &who )
 
     // starting the activity should cost a charge to boot up the ebook app
     if( using_ereader ) {
-        ereader->ammo_consume( ereader->ammo_required(), who.pos_bub(), &who );
+        ereader->consume_tool_uses( 1, get_map(), who.pos_bub(), &who );
     }
 
     act.moves_total = moves_total;
@@ -2183,7 +2185,7 @@ void read_activity_actor::do_turn( player_activity &act, Character &who )
                 laptop              - max 1200 charges from disposable medium battery = 100 hours of reading
                 smart_phone         - 120 UPS charges                                 = 10 hours of reading
         */
-        ereader->ammo_consume( ereader->ammo_required(), who.pos_bub(), &who );
+        ereader->consume_tool_uses( 1, get_map(), who.pos_bub(), &who );
     }
 }
 
@@ -2859,7 +2861,7 @@ void spellcasting_activity_actor::finish( player_activity &act, Character &who )
                     who.i_rem( it );
                     spell_item_casting = item_location::nowhere;
                 } else if( it && !it->has_flag( flag_USE_PLAYER_ENERGY ) ) {
-                    who.consume_charges( *it, it->type->charges_to_use() );
+                    it->consume_tool_uses( 1, get_map(), who.pos_bub(), &who );
                 }
             }
 
@@ -3169,7 +3171,7 @@ void boltcutting_activity_actor::do_turn( player_activity &/*act*/, Character &w
     map &here = get_map();
 
     if( tool->ammo_sufficient( &who ) ) {
-        tool->ammo_consume( tool->ammo_required(), here, tool.pos_bub( here ), &who );
+        tool->consume_tool_uses( 1, here, tool.pos_bub( here ), &who );
     } else {
         tool_out_of_charges( who, tool->tname() );
     }
@@ -3598,6 +3600,8 @@ time_duration ebooksave_activity_actor::required_time(
     return total_pages( books ) * time_per_page;
 }
 
+// TODO(multimag): UI estimate uses ammo_required for legacy compatibility;
+// for multimag conversions of e-readers this would need a uses-based formula.
 int ebooksave_activity_actor::required_charges(
     const std::vector<item_location> &books,
     const item_location &ereader )
@@ -3646,7 +3650,7 @@ void ebooksave_activity_actor::do_turn( player_activity &act, Character &who )
             return;
         }
 
-        ereader->ammo_consume( ereader->ammo_required(), who.pos_bub(), &who );
+        ereader->consume_tool_uses( 1, get_map(), who.pos_bub(), &who );
     }
 
     turns_left_on_current_book--;
@@ -3855,7 +3859,7 @@ void efile_activity_actor::do_turn( player_activity &act, Character &who )
                                                    edevice->display_name() ) );
                 return false;
             }
-            edevice->ammo_consume( edevice->ammo_required(), here, edevice.pos_bub( here ), &who );
+            edevice->consume_tool_uses( 1, here, edevice.pos_bub( here ), &who );
             add_msg_debug( debugmode::DF_ACT_EBOOK, "%s power check", edevice->display_name() );
         }
         return true;
@@ -8500,7 +8504,7 @@ void oxytorch_activity_actor::do_turn( player_activity &/*act*/, Character &who 
     map &here = get_map();
 
     if( tool->ammo_sufficient( &who ) ) {
-        tool->ammo_consume( tool->ammo_required(), here, tool.pos_bub( here ), &who );
+        tool->consume_tool_uses( 1, here, tool.pos_bub( here ), &who );
         sfx::play_activity_sound( "tool", "oxytorch", sfx::get_heard_volume( target ) );
         if( calendar::once_every( 2_turns ) ) {
             sounds::sound( target, 10, sounds::sound_t::destructive_activity, _( "hissssssssss!" ) );
@@ -9151,12 +9155,9 @@ void prying_activity_actor::do_turn( player_activity &/*act*/, Character &who )
     std::string method = "CROWBAR";
 
     if( tool->ammo_sufficient( &who, method ) ) {
-        int ammo_consumed = tool->ammo_required();
         std::map<std::string, int>::const_iterator iter = tool->type->ammo_scale.find( method );
-        if( iter != tool->type->ammo_scale.end() ) {
-            ammo_consumed *= iter->second;
-        }
-        tool->ammo_consume( ammo_consumed, here, tool.pos_bub( here ), &who );
+        const int uses = iter == tool->type->ammo_scale.end() ? 1 : iter->second;
+        tool->consume_tool_uses( uses, here, tool.pos_bub( here ), &who );
         if( prying_nails ) {
             sfx::play_activity_sound( "tool", "hammer", sfx::get_heard_volume( target ) );
         }
@@ -10226,7 +10227,7 @@ void firstaid_activity_actor::finish( player_activity &act, Character &who )
             it.remove_item();
         }
     } else if( used_tool->is_tool() ) {
-        if( used_tool->type->charges_to_use() ) {
+        if( used_tool->needs_charges_to_use() ) {
             it->activation_consume( charges_consumed, it.pos_bub( here ), &who );
         }
     }
@@ -10842,8 +10843,8 @@ void mine_activity_actor::finish( player_activity &act, Character &who )
                                _( "<npcname> finishes digging." ) );
     mining_strain( who );
 
-    if( mining_tool && mining_tool->ammo_required() > 0 ) {
-        mining_tool->ammo_consume( mining_tool->ammo_required(), tripoint_bub_ms::zero, &who );
+    if( mining_tool && mining_tool->needs_charges_to_use() ) {
+        mining_tool->consume_tool_uses( 1, get_map(), tripoint_bub_ms::zero, &who );
     }
 
     act.set_to_null();
@@ -12425,8 +12426,10 @@ void generic_entertainment_activity_actor::do_turn( player_activity &act, Charac
     if( calendar::once_every( 1_minutes ) ) {
         if( !!entertain_item ) {
             item &game_item = *entertain_item;
-            int req = game_item.ammo_required();
-            bool fail = req > 0 && game_item.ammo_consume( req, tripoint_bub_ms::zero, &who ) == 0;
+            const bool needs_power = game_item.needs_charges_to_use();
+            const bool fail = needs_power
+                              && game_item.consume_tool_uses( 1, get_map(),
+                                      tripoint_bub_ms::zero, &who ) == 0;
             if( fail ) {
                 act.moves_left = 0;
                 if( who.is_avatar() ) {
@@ -12544,7 +12547,7 @@ void vibe_activity_actor::do_turn( player_activity &act, Character &who )
 
     if( calendar::once_every( 1_minutes ) ) {
         if( vibrator_item.ammo_remaining( who_ptr ) > 0 ) {
-            vibrator_item.ammo_consume( 1, who.pos_bub(), who_ptr );
+            vibrator_item.consume_tool_uses( 1, get_map(), who.pos_bub(), who_ptr );
             who.add_morale( morale_feeling_good, 3, 40 );
             if( vibrator_item.ammo_remaining( who_ptr ) == 0 ) {
                 add_msg( m_info, _( "The %s runs out of batteries." ), vibrator_item.tname() );

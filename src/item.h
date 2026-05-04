@@ -66,6 +66,7 @@ struct armor_portion_data;
 struct islot_comestible;
 struct itype;
 struct itype_variant_data;
+struct pocket_consumption_entry;
 struct mtype;
 struct part_material;
 template<typename T>
@@ -2848,6 +2849,59 @@ class item : public visitable
 
         std::vector<item *> magazines_current();
         std::vector<const item *> magazines_current() const;
+
+        item_pocket *pocket_by_id( const std::string &id );
+        const item_pocket *pocket_by_id( const std::string &id ) const;
+
+        int ammo_remaining_in_pocket( const std::string &id ) const;
+        int ammo_consume_in_pocket( const std::string &id, int qty, map &here,
+                                    const tripoint_bub_ms &pos );
+
+        bool uses_firing_requirements() const;
+        // Combined "needs any kind of charge" predicate for multimag,
+        // legacy energy-only guns, and legacy charge-tools.
+        bool needs_charges_to_use() const;
+
+        // Multimag gun: prefer a loaded MAGAZINE_WELL whose ammo intersects
+        // gun.ammo, then any such well, then any loaded well, then any well.
+        // nullptr if no MAGAZINE_WELL exists.
+        const item_pocket *primary_ammo_pocket() const;
+
+        // Magazine driving ammo-identity queries: primary_ammo_pocket's mag
+        // for multimag guns, magazine_current otherwise.
+        const item *ammo_identity_mag() const;
+
+        bool pocket_accepts_battery( const item_pocket *p ) const;
+        bool pocket_is_primary_ammo( const item_pocket *p ) const;
+
+        // Per-shot qty after gunmod modifiers: ammo_to_fire_* on
+        // primary-ammo entries, energy_drain_* on battery-but-not-primary.
+        // Sub-1 positive results round up to 1; non-positive disables the
+        // entry entirely.
+        int effective_qty( const pocket_consumption_entry &e ) const;
+
+        std::string format_consumption_requirements(
+            const std::string &method = "",
+            const gun_mode_id &mode = gun_mode_id( "DEFAULT" ),
+            int uses = 1 ) const;
+
+        // Ranking-only scalar; never call for actual consumption.
+        int expected_cost_per_use( const std::string &method = "" ) const;
+
+        // _local excludes external pool so inventory aggregation does not
+        // sum the same UPS/bionic/cable once per matching item.
+        int tool_uses_remaining( map &here, const Character *carrier ) const;
+        int tool_uses_remaining_local() const;
+
+        int available_cable_charges( map &here ) const;
+        int available_ups_charges( const Character *carrier ) const;
+        int available_bionic_charges( const Character *carrier ) const;
+
+        int consume_shots( const gun_mode_id &mode, int shots, map &here,
+                           const tripoint_bub_ms &pos, Character *carrier );
+        int consume_tool_uses( int uses, map &here, const tripoint_bub_ms &pos,
+                               Character *carrier );
+        int consume_one_shot( map &here, const tripoint_bub_ms &pos, Character *carrier );
 
         /** Returns all gunmods currently attached to this item (always empty if item not a gun) */
         std::vector<item *> gunmods();

@@ -2343,6 +2343,86 @@ void Item_factory::check_definitions() const
             }
         }
 
+        // Pocket id uniqueness applies to every item so future mods or
+        // follow-ups can reference an id added on a not-yet-multimag pocket.
+        std::set<std::string> seen_pocket_ids;
+        for( const pocket_data &p : type->pockets ) {
+            if( p.pocket_id.empty() ) {
+                continue;
+            }
+            if( !seen_pocket_ids.insert( p.pocket_id ).second ) {
+                msg += string_format( "duplicate pocket id \"%s\" on item\n", p.pocket_id );
+            }
+        }
+
+        if( !type->firing_requirements.empty() ) {
+            if( type->gun ) {
+                if( type->gun->energy_drain > 0_kJ ) {
+                    msg += "firing_requirements and non-zero energy_drain are mutually exclusive\n";
+                }
+                if( type->gun->ammo_to_fire != 1 ) {
+                    msg += "firing_requirements and non-default ammo_to_fire are mutually exclusive\n";
+                }
+            }
+            if( type->tool ) {
+                if( type->tool->charges_per_use != 0 ) {
+                    msg += "consumption_per_use and charges_per_use are mutually exclusive\n";
+                }
+                if( type->tool->power_draw != 0_W ) {
+                    msg += "consumption_per_use and power_draw are mutually exclusive\n";
+                }
+            }
+            if( type->legacy_charges_per_use_factor < 1 ) {
+                msg += string_format( "legacy_charges_per_use_factor must be >= 1, got %d\n",
+                                      type->legacy_charges_per_use_factor );
+            }
+            std::set<std::string> referenced;
+            for( const auto &mode_pair : type->firing_requirements.per_mode ) {
+                if( type->gun && !type->gun->modes.count( mode_pair.first ) ) {
+                    msg += string_format( "firing_requirements mode \"%s\" is not in modes\n",
+                                          mode_pair.first.str() );
+                }
+                for( const pocket_consumption_entry &e : mode_pair.second ) {
+                    referenced.insert( e.pocket );
+                }
+            }
+            // Every base-gun mode needs an explicit firing_requirements entry
+            // so authors can't silently underconsume by omitting BURST or AUTO.
+            // Gunmod-added modes (mode_modifier) inherit DEFAULT at runtime.
+            if( type->gun ) {
+                for( const auto &m : type->gun->modes ) {
+                    if( !type->firing_requirements.per_mode.count( m.first ) ) {
+                        msg += string_format(
+                                   "firing_requirements is missing entry for base mode \"%s\"\n",
+                                   m.first.str() );
+                    }
+                }
+            }
+            for( const std::string &id : referenced ) {
+                bool found = false;
+                bool right_type = false;
+                for( const pocket_data &p : type->pockets ) {
+                    if( p.pocket_id == id ) {
+                        found = true;
+                        // Integral MAGAZINE pockets aren't wired through
+                        // energy/recharge/aggregation helpers yet.
+                        if( p.type == pocket_type::MAGAZINE_WELL ) {
+                            right_type = true;
+                        }
+                        break;
+                    }
+                }
+                if( !found ) {
+                    msg += string_format(
+                               "firing_requirements references unknown pocket id \"%s\"\n", id );
+                } else if( !right_type ) {
+                    msg += string_format(
+                               "firing_requirements references pocket id \"%s\" which is not a MAGAZINE_WELL pocket\n",
+                               id );
+                }
+            }
+        }
+
         if( !type->category_force.is_valid() ) {
             msg += "undefined category " + type->category_force.str() + "\n";
         }
@@ -3150,6 +3230,67 @@ void itype_variant_data::load( const JsonObject &jo )
     optional( jo, false, "weight", weight, 1 );
     optional( jo, false, "append", append );
     optional( jo, false, "expand_snippets", expand_snippets );
+}
+
+void pocket_consumption_entry::deserialize( const JsonObject &jo )
+{
+    mandatory( jo, was_loaded, "pocket", pocket );
+    mandatory( jo, was_loaded, "qty", qty );
+    if( qty < 1 ) {
+        jo.throw_error_at( "qty",
+                           "pocket_consumption_entry qty must be >= 1 (zero or negative would divide by zero in feasibility math)" );
+    }
+}
+
+static std::vector<pocket_consumption_entry> read_consumption_entries(
+    const JsonValue &val )
+{
+    std::vector<pocket_consumption_entry> entries;
+    if( !val.test_array() ) {
+        val.throw_error( "consumption entry list must be a JSON array" );
+    }
+    for( const JsonValue &element : val.get_array() ) {
+        if( !element.test_object() ) {
+            element.throw_error( "consumption entry must be an object" );
+        }
+        pocket_consumption_entry entry;
+        JsonObject jo = element.get_object();
+        entry.deserialize( jo );
+        jo.allow_omitted_members();
+        entries.push_back( std::move( entry ) );
+    }
+    if( entries.empty() ) {
+        val.throw_error( "consumption entry list must not be empty" );
+    }
+    return entries;
+}
+
+void firing_requirement_set::deserialize_firing_requirements(
+    const JsonObject &jo, std::string_view member )
+{
+    JsonObject sub = jo.get_object( member );
+    if( !sub.has_member( "//" ) && sub.size() == 0 ) {
+        sub.throw_error( "firing_requirements must contain at least one mode entry" );
+    }
+    for( const JsonMember m : sub ) {
+        if( m.name() == "//" || m.name().substr( 0, 2 ) == "//" ) {
+            continue;
+        }
+        per_mode[gun_mode_id( m.name() )] = read_consumption_entries( m );
+    }
+    sub.allow_omitted_members();
+    if( per_mode.empty() ) {
+        jo.throw_error_at( member,
+                           "firing_requirements must contain at least one non-comment mode entry" );
+    }
+    was_loaded = true;
+}
+
+void firing_requirement_set::deserialize_consumption_per_use(
+    const JsonObject &jo, std::string_view member )
+{
+    per_mode[gun_mode_DEFAULT] = read_consumption_entries( jo.get_member( member ) );
+    was_loaded = true;
 }
 
 
@@ -4378,6 +4519,14 @@ void itype::load( const JsonObject &jo, std::string_view src )
     optional( jo, was_loaded, "snippet_category", snippet_category, snippet_reader{ *this, src } );
 
     optional( jo, was_loaded, "pocket_data", pockets );
+
+    if( jo.has_member( "firing_requirements" ) ) {
+        firing_requirements.deserialize_firing_requirements( jo, "firing_requirements" );
+    }
+    if( jo.has_member( "consumption_per_use" ) ) {
+        firing_requirements.deserialize_consumption_per_use( jo, "consumption_per_use" );
+    }
+    optional( jo, was_loaded, "legacy_charges_per_use_factor", legacy_charges_per_use_factor, 1 );
 
     load_slots( jo, was_loaded );
 

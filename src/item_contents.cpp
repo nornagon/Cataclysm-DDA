@@ -1344,6 +1344,41 @@ int item_contents::ammo_consume( int qty, map *here, const tripoint_bub_ms &pos,
     return consumed;
 }
 
+int item_contents::ammo_consume_in_pocket( const std::string &id, int qty, map *here,
+        const tripoint_bub_ms &pos )
+{
+    if( id.empty() || qty <= 0 ) {
+        return 0;
+    }
+    for( item_pocket &pocket : contents ) {
+        const pocket_data *pd = pocket.get_pocket_data();
+        if( pd == nullptr || pd->pocket_id != id ) {
+            continue;
+        }
+        if( pocket.is_type( pocket_type::MAGAZINE_WELL ) ) {
+            item *mag = pocket.magazine_current();
+            if( mag == nullptr ) {
+                return 0;
+            }
+            const int res = mag->ammo_consume( qty, *here, pos, nullptr );
+            if( res && mag->ammo_remaining() == 0 ) {
+                if( mag->has_flag( json_flag_MAG_DESTROY ) ) {
+                    pocket.remove_item( *mag );
+                } else if( mag->has_flag( json_flag_MAG_EJECT ) ) {
+                    here->add_item( pos, *mag );
+                    pocket.remove_item( *mag );
+                }
+            }
+            return res;
+        }
+        if( pocket.is_type( pocket_type::MAGAZINE ) ) {
+            return pocket.ammo_consume( qty );
+        }
+        return 0;
+    }
+    return 0;
+}
+
 item *item_contents::magazine_current()
 {
     for( item_pocket &pocket : contents ) {

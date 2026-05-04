@@ -4426,27 +4426,32 @@ bool Character::invoke_item( item *used, const std::string &method, const tripoi
         return false;
     }
     if( !used->ammo_sufficient( this, method ) ) {
-        int ammo_req = used->ammo_required();
         std::string it_name = used->tname();
-        if( used->has_flag( flag_USE_UPS ) ) {
-            add_msg_if_player( m_info,
-                               n_gettext( "Your %s needs %d charge from some UPS.",
-                                          "Your %s needs %d charges from some UPS.",
-                                          ammo_req ),
-                               it_name, ammo_req );
-        } else if( used->has_flag( flag_USES_BIONIC_POWER ) ) {
-            add_msg_if_player( m_info,
-                               n_gettext( "Your %s needs %d kJ of bionic power.",
-                                          "Your %s needs %d kJ of bionic power.",
-                                          ammo_req ),
-                               it_name, ammo_req );
+        if( used->uses_firing_requirements() ) {
+            const std::string req = used->format_consumption_requirements( method );
+            add_msg_if_player( m_info, _( "Your %s needs: %s." ), it_name, req );
         } else {
-            int ammo_rem = used->ammo_remaining( );
-            add_msg_if_player( m_info,
-                               n_gettext( "Your %s has %d charge, but needs %d.",
-                                          "Your %s has %d charges, but needs %d.",
-                                          ammo_rem ),
-                               it_name, ammo_rem, ammo_req );
+            int ammo_req = used->ammo_required();
+            if( used->has_flag( flag_USE_UPS ) ) {
+                add_msg_if_player( m_info,
+                                   n_gettext( "Your %s needs %d charge from some UPS.",
+                                              "Your %s needs %d charges from some UPS.",
+                                              ammo_req ),
+                                   it_name, ammo_req );
+            } else if( used->has_flag( flag_USES_BIONIC_POWER ) ) {
+                add_msg_if_player( m_info,
+                                   n_gettext( "Your %s needs %d kJ of bionic power.",
+                                              "Your %s needs %d kJ of bionic power.",
+                                              ammo_req ),
+                                   it_name, ammo_req );
+            } else {
+                int ammo_rem = used->ammo_remaining( );
+                add_msg_if_player( m_info,
+                                   n_gettext( "Your %s has %d charge, but needs %d.",
+                                              "Your %s has %d charges, but needs %d.",
+                                              ammo_rem ),
+                                   it_name, ammo_rem, ammo_req );
+            }
         }
         set_moves( pre_obtain_moves );
         return false;
@@ -4499,6 +4504,12 @@ bool Character::consume_charges( item &used, int qty )
         return false;
     }
 
+    if( used.uses_firing_requirements() ) {
+        debugmsg( "consume_charges called on multimag tool %s; caller must use "
+                  "consume_tool_uses instead", used.tname() );
+        return false;
+    }
+
     // Consume comestibles destroying them if no charges remain
     if( used.is_food() || used.is_medication() ) {
         used.charges -= qty;
@@ -4509,8 +4520,7 @@ bool Character::consume_charges( item &used, int qty )
         return false;
     }
 
-    // Tools which don't require ammo are instead destroyed
-    if( used.is_tool() && !used.ammo_required() ) {
+    if( used.is_tool() && !used.needs_charges_to_use() ) {
         if( has_item( used ) ) {
             i_rem( &used );
         } else {
