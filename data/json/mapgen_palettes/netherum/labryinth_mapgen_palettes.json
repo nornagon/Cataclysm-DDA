@@ -307,6 +307,6 @@
       "t": { "monster": "GROUP_Labyrinth_Turret", "density": 0.01 }
     },
     "nested": { "1": { "chunks": [ [ "null", 1 ], [ "ls_2x2_furniture", 3 ] ] } },
-    "items": { "X": { "item": "bionics", "chance": 5, "repeat": [ 1, 2 ] } }
+    "items": { "X": { "item": "LS_SUS_crate_tier1_loot", "chance": 70, "repeat": [ 1, 2 ] } }
   }
 ]
