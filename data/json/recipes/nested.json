@@ -74,7 +74,7 @@
     "subcategory": "CSC_*_NESTED",
     "name": "graded steel maces",
     "description": "Recipes related to constructing different qualities of steel maces.",
-    "nested_category_data": [ "lc_mace", "mc_mace", "hc_mace", "ch_mace", "qt_mace" ]
+    "nested_category_data": [ "lc_mace", "mace", "hc_mace", "ch_mace", "qt_mace" ]
   },
   {
     "id": "nested_maces",

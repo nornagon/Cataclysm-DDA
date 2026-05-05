@@ -330,7 +330,7 @@
   {
     "type": "item_group",
     "id": "maces",
-    "items": [ [ "mace_bronze", 20 ], [ "lc_mace", 20 ], [ "mc_mace", 10 ], [ "hc_mace", 5 ], [ "ch_mace", 2 ], [ "qt_mace", 1 ] ]
+    "items": [ [ "mace_bronze", 20 ], [ "lc_mace", 20 ], [ "mace", 10 ], [ "hc_mace", 5 ], [ "ch_mace", 2 ], [ "qt_mace", 1 ] ]
   },
   {
     "type": "item_group",
