@@ -507,8 +507,15 @@ static bool gun_uses_liquid_ammo( const itype &guntype )
             return true;
         }
     }
-    for( const pocket_data &maybe_magwell : guntype.pockets ) {
-        for( const itype_id &restricted_types : maybe_magwell.item_id_restriction ) {
+    for( const pocket_data &pkt : guntype.pockets ) {
+        if( pkt.type == pocket_type::MAGAZINE ) {
+            for( const std::pair<const ammotype, int> &res : pkt.ammo_restriction ) {
+                if( res.first->default_ammotype()->phase == phase_id::LIQUID ) {
+                    return true;
+                }
+            }
+        }
+        for( const itype_id &restricted_types : pkt.item_id_restriction ) {
             for( const pocket_data &maybe_mag : restricted_types.obj().pockets ) {
                 for( const std::pair<const ammotype, int> &res : maybe_mag.ammo_restriction ) {
                     if( res.first->default_ammotype()->phase == phase_id::LIQUID ) {
