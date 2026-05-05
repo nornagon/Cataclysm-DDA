@@ -8,6 +8,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -19,7 +20,6 @@
 
 class Character;
 class read_only_visitable;
-struct construction;
 struct point;
 
 namespace catacurses
@@ -34,11 +34,6 @@ struct partial_con {
     std::list<item> components;
     construction_id id = construction_id( -1 );
 };
-
-template <>
-const construction &construction_id::obj() const;
-template <>
-bool construction_id::is_valid() const;
 
 struct construction {
         // Construction type category
@@ -71,12 +66,15 @@ struct construction {
         bool is_blacklisted() const;
 
         // Index in construction vector
-        construction_id id = construction_id( -1 );
-        construction_str_id str_id = construction_str_id::NULL_ID();
+        construction_str_id id;
+        void load( const JsonObject &jo, std::string_view );
+        void check() const;
+        void finalize();
 
         // Time in moves
         int time = 0;
 
+        bool was_loaded = false;
         // If true, the requirements are generated during finalization
         bool vehicle_start = false;
 
@@ -119,7 +117,7 @@ struct construction {
 const std::vector<construction> &get_constructions();
 
 void place_construction( std::vector<construction_group_str_id> const &groups );
-void load_construction( const JsonObject &jo );
+void load_construction( const JsonObject &jo, const std::string &src );
 void reset_constructions();
 construction_id construction_menu( bool blueprint );
 bool has_pre_flags( const construction &con, furn_id const &f, ter_id const &t );
