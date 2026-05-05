@@ -68,6 +68,8 @@ struct construction {
         std::vector<std::pair<requirement_id, int>> reqs_using;
         requirement_id requirements;
 
+        bool is_blacklisted() const;
+
         // Index in construction vector
         construction_id id = construction_id( -1 );
         construction_str_id str_id = construction_str_id::NULL_ID();

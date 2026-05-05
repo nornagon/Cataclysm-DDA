@@ -303,7 +303,7 @@ constructions_by_filter( std::function<bool( construction const & )> const &filt
     }
     std::vector<const construction *> result;
     for( const construction &constructions_a : get_constructions() ) {
-        if( filter( constructions_a ) ) {
+        if( filter( constructions_a ) && !constructions_a.is_blacklisted() ) {
             result.push_back( &constructions_a );
         }
     }
@@ -322,7 +322,7 @@ static void load_available_constructions( std::vector<construction_group_str_id>
     }
     avatar &player_character = get_avatar();
     for( const construction &it : get_constructions() ) {
-        if( !it.on_display ) {
+        if( !it.on_display || it.is_blacklisted() ) {
             continue;
         }
         bool ok = false;
@@ -2651,11 +2651,6 @@ void finalize_constructions()
         inp_mngr.pump_events();
     }
 
-    constructions.erase( std::remove_if( constructions.begin(), constructions.end(),
-    [&]( const construction & c ) {
-        return c.requirements->is_blacklisted();
-    } ), constructions.end() );
-
     construction_id_map.clear();
     for( size_t i = 0; i < constructions.size(); i++ ) {
         constructions[ i ].id = construction_id( i );
@@ -2663,6 +2658,11 @@ void finalize_constructions()
     }
 
     finalized = true;
+}
+
+bool construction::is_blacklisted() const
+{
+    return requirements->is_blacklisted();
 }
 
 // Using BFS to find the shortest route to create target terrain from empty or base terrain,
@@ -2673,7 +2673,7 @@ std::vector<construction_id> find_build_sequence( const std::string &target_id,
     // make a post_terrain->construction multimap for speedy search
     std::unordered_multimap<std::string, const construction *> construction_map;
     for( construction const &cons : get_constructions() ) {
-        if( !filter( cons ) ) {
+        if( !filter( cons ) || cons.is_blacklisted() ) {
             continue;
         }
         construction_map.insert( { cons.post_terrain, &cons } );
