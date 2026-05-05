@@ -156,6 +156,49 @@ std::set<itype_id> turret_data::ammo_options() const
         return opts;
     }
 
+    if( part->base.uses_firing_requirements() ) {
+        // Battery pockets are not user-selectable and never enumerated.
+        const item &gun = part->base;
+        const std::vector<pocket_consumption_entry> *entries =
+            gun.type->firing_requirements.for_mode( gun.gun_get_mode_id() );
+        if( entries == nullptr ) {
+            return opts;
+        }
+        for( const pocket_consumption_entry &pce : *entries ) {
+            const item_pocket *pkt = gun.pocket_by_id( pce.pocket );
+            if( pkt == nullptr ) {
+                continue;
+            }
+            const pocket_data *pdat = pkt->get_pocket_data();
+            if( pdat == nullptr ) {
+                continue;
+            }
+            if( gun.pocket_accepts_battery( pkt ) ) {
+                continue;
+            }
+            if( pdat->type == pocket_type::MAGAZINE ) {
+                for( const std::pair<const ammotype, int> &ar : pdat->ammo_restriction ) {
+                    for( const vpart_reference &tvp :
+                         veh->get_avail_parts( vpart_bitflags::VPFLAG_FLUIDTANK ) ) {
+                        const itype_id &tank_ammo = tvp.part().ammo_current();
+                        if( tank_ammo.is_null() || !tank_ammo->ammo ) {
+                            continue;
+                        }
+                        if( tank_ammo->ammo->type == ar.first ) {
+                            opts.insert( tank_ammo );
+                        }
+                    }
+                }
+            } else if( pdat->type == pocket_type::MAGAZINE_WELL ) {
+                const itype_id loaded = gun.ammo_data() ? gun.ammo_data()->get_id() : itype_id::NULL_ID();
+                if( !loaded.is_null() ) {
+                    opts.insert( loaded );
+                }
+            }
+        }
+        return opts;
+    }
+
     if( !uses_vehicle_tanks_or_batteries() ) {
         if( !part->base.ammo_current().is_null() ) {
             opts.insert( part->base.ammo_current() );
@@ -281,6 +324,51 @@ bool turret_data::can_unload() const
         return false;
     }
     return part->base.ammo_remaining( ) || part->base.magazine_current();
+}
+
+std::vector<multimag_display_pocket> turret_data::multimag_display_state() const
+{
+    std::vector<multimag_display_pocket> out;
+    if( !veh || !part ) {
+        return out;
+    }
+    const item &gun = part->base;
+    if( !gun.uses_firing_requirements() ) {
+        return out;
+    }
+    const gun_mode_id mode = gun.gun_get_mode_id();
+    const std::vector<pocket_consumption_entry> *entries =
+        gun.type->firing_requirements.for_mode( mode );
+    if( entries == nullptr ) {
+        return out;
+    }
+    item gun_copy( gun );
+    const std::map<std::string, multimag_pocket_state> bindings =
+        vehicle::prepare_multimag_pockets( *veh, get_map(), gun_copy, mode, ammo_current() );
+    for( const pocket_consumption_entry &pce : *entries ) {
+        multimag_display_pocket dp;
+        dp.pocket_id = pce.pocket;
+        dp.per_use_qty = pce.qty;
+        dp.local_qty = gun.ammo_remaining_in_pocket( pce.pocket );
+        dp.effective_qty = gun_copy.ammo_remaining_in_pocket( pce.pocket );
+        dp.vehicle_bound = bindings.count( pce.pocket ) > 0;
+        if( const item_pocket *pkt = gun_copy.pocket_by_id( pce.pocket ) ) {
+            for( const item *it : pkt->all_items_top() ) {
+                if( !it ) {
+                    continue;
+                }
+                if( const itype *ad = it->ammo_data() ) {
+                    dp.ammo_itype = ad->get_id();
+                    break;
+                }
+                if( !it->typeId().is_null() ) {
+                    dp.ammo_itype = it->typeId();
+                }
+            }
+        }
+        out.push_back( std::move( dp ) );
+    }
+    return out;
 }
 
 turret_data::status turret_data::query() const

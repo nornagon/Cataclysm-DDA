@@ -34,8 +34,12 @@ static const itype_id itype_glockmag( "glockmag" );
 static const itype_id itype_test_multimag_gun_consume( "test_multimag_gun_consume" );
 static const itype_id itype_test_multimag_turret_gun( "test_multimag_turret_gun" );
 
-static const vpart_id vpart_turret_test_multimag_turret_gun( "turret_test_multimag_turret_gun" );
 static const vpart_id vpart_turret_test_multimag_gun_consume( "turret_test_multimag_gun_consume" );
+static const vpart_id vpart_turret_test_multimag_turret_flamethrower(
+    "turret_test_multimag_turret_flamethrower" );
+static const vpart_id vpart_turret_test_multimag_turret_gun( "turret_test_multimag_turret_gun" );
+
+static const gun_mode_id gun_mode_BURST( "BURST" );
 
 static std::vector<const vpart_info *> all_turret_types()
 {
@@ -149,12 +153,17 @@ TEST_CASE( "vehicle_turret_multimag", "[vehicle][turret][multimag]" )
     const tripoint_bub_ms veh_pos( 65, 65, 0 );
 
     SECTION( "multimag gun without NO_TURRET has an auto-generated turret vpart" ) {
-        // After dropping the firing_requirements early-return in mountable_gun_filter,
-        // vehicles::parts::finalize() generates `turret_<gun_id>` vparts for any
-        // mountable gun. This is the precondition for everything else below.
+        // NO_TURRET on the gun suppresses turret vpart generation.
         REQUIRE( vpart_turret_test_multimag_turret_gun.is_valid() );
-        // Per-gun NO_TURRET opt-out still suppresses generation.
         REQUIRE_FALSE( vpart_turret_test_multimag_gun_consume.is_valid() );
+    }
+
+    SECTION( "flamethrower-shape gun gets USE_TANKS flag from gun_uses_liquid_ammo" ) {
+        // Direct MAGAZINE liquid pocket on the gun must trigger USE_TANKS in
+        // the auto-generated turret vpart so install heuristics treat it as
+        // a fluid-fed turret.
+        REQUIRE( vpart_turret_test_multimag_turret_flamethrower.is_valid() );
+        REQUIRE( vpart_turret_test_multimag_turret_flamethrower.obj().has_flag( "USE_TANKS" ) );
     }
 
     SECTION( "install + query + fire happy path" ) {
@@ -200,6 +209,142 @@ TEST_CASE( "vehicle_turret_multimag", "[vehicle][turret][multimag]" )
         // Vehicle battery drained per power-pocket per_use (5 kJ DEFAULT).
         const int batt_after = veh->battery_left( here, /* apply_loss = */ false );
         CHECK( batt_before - batt_after == 5 * shots_fired );
+
+        here.destroy_vehicle( veh );
+        explosion_handler::process_explosions();
+        clear_avatar();
+    }
+
+    SECTION( "post_fire clears bound power well, leaves player ammo well intact" ) {
+        vehicle *veh = here.add_vehicle( vehicle_prototype_test_turret_rig, veh_pos,
+                                         270_degrees, 0, 2, false, true );
+        REQUIRE( veh );
+        const int turr_idx = veh->install_part( here, point_rel_ms::zero,
+                                                vpart_turret_test_multimag_turret_gun );
+        REQUIRE( turr_idx >= 0 );
+        vehicle_part &vp = veh->part( turr_idx );
+
+        const auto& [bat_current, bat_capacity] = veh->battery_power_level();
+        veh->charge_battery( here, bat_capacity, /* apply_loss = */ false );
+
+        item mag( itype_glockmag );
+        const int mag_initial = 15;
+        mag.put_in( item( itype_9mm, calendar::turn, mag_initial ), pocket_type::MAGAZINE );
+        item base_copy( vp.get_base() );
+        REQUIRE( base_copy.put_in( mag, pocket_type::MAGAZINE_WELL ).success() );
+        vp.set_base( std::move( base_copy ) );
+
+        turret_data qry = veh->turret_query( vp );
+        REQUIRE( qry.query() == turret_data::status::ready );
+        player_character.setpos( here, veh->bub_part_pos( here, vp ) );
+        int shots_fired = 0;
+        for( int attempt = 0; shots_fired == 0 && attempt < 3; attempt++ ) {
+            shots_fired += qry.fire( player_character, &here,
+                                     player_character.pos_bub() + point( qry.range(), 0 ) );
+            clear_faults_from_vp( vp );
+        }
+        REQUIRE( shots_fired > 0 );
+
+        // Player-loaded mag survives post_fire with rounds drawn down by per_use.
+        const int ammo_after = vp.get_base().ammo_remaining_in_pocket( "ammo" );
+        CHECK( ammo_after == mag_initial - shots_fired );
+
+        // Vehicle-bound power well cleared back to empty so next prep starts fresh.
+        CHECK( vp.get_base().ammo_remaining_in_pocket( "power" ) == 0 );
+
+        here.destroy_vehicle( veh );
+        explosion_handler::process_explosions();
+        clear_avatar();
+    }
+
+    SECTION( "BURST mode drains per_use_battery * mode.qty per shot" ) {
+        vehicle *veh = here.add_vehicle( vehicle_prototype_test_turret_rig, veh_pos,
+                                         270_degrees, 0, 2, false, true );
+        REQUIRE( veh );
+        const int turr_idx = veh->install_part( here, point_rel_ms::zero,
+                                                vpart_turret_test_multimag_turret_gun );
+        REQUIRE( turr_idx >= 0 );
+        vehicle_part &vp = veh->part( turr_idx );
+        const auto& [bat_current, bat_capacity] = veh->battery_power_level();
+        veh->charge_battery( here, bat_capacity, /* apply_loss = */ false );
+
+        item mag( itype_glockmag );
+        mag.put_in( item( itype_9mm, calendar::turn, 15 ), pocket_type::MAGAZINE );
+        item base_copy( vp.get_base() );
+        REQUIRE( base_copy.put_in( mag, pocket_type::MAGAZINE_WELL ).success() );
+        vp.set_base( std::move( base_copy ) );
+
+        {
+            item gun_with_mode( vp.get_base() );
+            while( gun_with_mode.gun_get_mode_id() != gun_mode_BURST ) {
+                gun_with_mode.gun_cycle_mode();
+            }
+            vp.set_base( std::move( gun_with_mode ) );
+        }
+        REQUIRE( vp.get_base().gun_get_mode_id() == gun_mode_BURST );
+
+        turret_data qry = veh->turret_query( vp );
+        REQUIRE( qry.query() == turret_data::status::ready );
+        const int batt_before = veh->battery_left( here, /* apply_loss = */ false );
+
+        player_character.setpos( here, veh->bub_part_pos( here, vp ) );
+        int shots_fired = 0;
+        for( int attempt = 0; shots_fired == 0 && attempt < 3; attempt++ ) {
+            shots_fired += qry.fire( player_character, &here,
+                                     player_character.pos_bub() + point( qry.range(), 0 ) );
+            clear_faults_from_vp( vp );
+        }
+        REQUIRE( shots_fired > 0 );
+
+        const int batt_after = veh->battery_left( here, /* apply_loss = */ false );
+        CHECK( batt_before - batt_after == 15 * shots_fired );
+
+        here.destroy_vehicle( veh );
+        explosion_handler::process_explosions();
+        clear_avatar();
+    }
+
+    SECTION( "BURST stops mid-sequence when vehicle battery cannot cover next burst" ) {
+        vehicle *veh = here.add_vehicle( vehicle_prototype_test_turret_rig, veh_pos,
+                                         270_degrees, 0, 2, false, true );
+        REQUIRE( veh );
+        const int turr_idx = veh->install_part( here, point_rel_ms::zero,
+                                                vpart_turret_test_multimag_turret_gun );
+        REQUIRE( turr_idx >= 0 );
+        vehicle_part &vp = veh->part( turr_idx );
+
+        // Charge vehicle to exactly one BURST worth (15 kJ); next burst must fail.
+        veh->discharge_battery( here, 100000 );
+        veh->charge_battery( here, 15, /* apply_loss = */ false );
+        REQUIRE( static_cast<int>( veh->battery_left( here, false ) ) == 15 );
+
+        item mag( itype_glockmag );
+        mag.put_in( item( itype_9mm, calendar::turn, 15 ), pocket_type::MAGAZINE );
+        item base_copy( vp.get_base() );
+        REQUIRE( base_copy.put_in( mag, pocket_type::MAGAZINE_WELL ).success() );
+        vp.set_base( std::move( base_copy ) );
+
+        {
+            item gun_with_mode( vp.get_base() );
+            while( gun_with_mode.gun_get_mode_id() != gun_mode_BURST ) {
+                gun_with_mode.gun_cycle_mode();
+            }
+            vp.set_base( std::move( gun_with_mode ) );
+        }
+
+        turret_data qry = veh->turret_query( vp );
+        REQUIRE( qry.query() == turret_data::status::ready );
+
+        player_character.setpos( here, veh->bub_part_pos( here, vp ) );
+        const int first = qry.fire( player_character, &here,
+                                    player_character.pos_bub() + point( qry.range(), 0 ) );
+        clear_faults_from_vp( vp );
+        CHECK( first > 0 );
+        CHECK( veh->battery_left( here, false ) == 0 );
+
+        // Vehicle empty; subsequent burst must report no_ammo before firing.
+        turret_data qry2 = veh->turret_query( vp );
+        CHECK( qry2.query() == turret_data::status::no_ammo );
 
         here.destroy_vehicle( veh );
         explosion_handler::process_explosions();

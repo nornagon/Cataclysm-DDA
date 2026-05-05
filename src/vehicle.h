@@ -621,6 +621,18 @@ struct multimag_pocket_state {
     int vpart_index = -1;
 };
 
+// Per-pocket readiness summary for aim UI display of a multimag turret.
+// `effective_qty` is the count after prep would load vehicle-backed pockets;
+// `local_qty` is what the gun already holds without any vehicle help.
+struct multimag_display_pocket {
+    std::string pocket_id;
+    itype_id ammo_itype;
+    int local_qty = 0;
+    int effective_qty = 0;
+    int per_use_qty = 0;
+    bool vehicle_bound = false;
+};
+
 class turret_data
 {
         friend vehicle;
@@ -701,6 +713,8 @@ class turret_data
 
         bool can_reload() const;
         bool can_unload() const;
+
+        std::vector<multimag_display_pocket> multimag_display_state() const;
 
         enum class status : int {
             invalid,

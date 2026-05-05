@@ -4330,6 +4330,26 @@ void target_ui::panel_gun_info( int &text_y )
 
     if( status == Status::OutOfAmmo ) {
         mvwprintz( w_target, point( 1, text_y++ ), c_red, _( "OUT OF AMMO" ) );
+    } else if( mode == TargetMode::TurretManual && turret &&
+               relevant->uses_firing_requirements() ) {
+        const std::vector<multimag_display_pocket> dps = turret->multimag_display_state();
+        for( const multimag_display_pocket &dp : dps ) {
+            const itype *ad = dp.ammo_itype.is_null() ? nullptr : item::find_type( dp.ammo_itype );
+            const std::string ammo_name = ad ? ad->nname( std::max( dp.effective_qty, 1 ) ) :
+                                          dp.pocket_id;
+            const nc_color ammo_clr = ad ? ad->color : c_light_gray;
+            std::string ammo_str;
+            if( dp.vehicle_bound ) {
+                ammo_str = string_format( _( "%s: %s (vehicle %d, need %d)" ),
+                                          dp.pocket_id, colorize( ammo_name, ammo_clr ),
+                                          dp.effective_qty, dp.per_use_qty );
+            } else {
+                ammo_str = string_format( _( "%s: %s (%d, need %d)" ),
+                                          dp.pocket_id, colorize( ammo_name, ammo_clr ),
+                                          dp.effective_qty, dp.per_use_qty );
+            }
+            print_colored_text( w_target, point( 1, text_y++ ), clr, clr, ammo_str );
+        }
     } else if( ammo ) {
         bool is_favorite = relevant->is_ammo_container() && relevant->first_ammo().is_favorite;
         str = string_format( m->ammo_remaining( ) ? _( "Ammo: %s%s (%d/%d)" ) : _( "Ammo: %s%s" ),

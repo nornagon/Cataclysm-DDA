@@ -5733,27 +5733,26 @@
     ]
   },
   {
-    "id": "test_multimag_gun_consume",
+    "id": "test_multimag_turret_flamethrower",
     "type": "ITEM",
     "subtypes": [ "GUN" ],
-    "name": { "str": "test multimag consume gun" },
-    "description": "Test gun for multimag consumption: 9mm well + battery well, two modes.",
-    "weight": "1000 g",
-    "volume": "1500 ml",
-    "longest_side": "400 mm",
+    "name": { "str": "test multimag flamethrower turret" },
+    "description": "Direct MAGAZINE liquid pocket + battery; exercises USE_TANKS heuristic.",
+    "weight": "2500 g",
+    "volume": "2000 ml",
+    "longest_side": "600 mm",
     "material": [ "steel" ],
     "symbol": "(",
-    "color": "light_gray",
-    "ammo": [ "9mm" ],
-    "skill": "pistol",
-    "range": 10,
-    "ranged_damage": { "damage_type": "bullet", "amount": 10 },
+    "color": "red",
+    "ammo": [ "gasoline" ],
+    "skill": "rifle",
+    "range": 6,
+    "ranged_damage": { "damage_type": "heat", "amount": 5 },
     "dispersion": 480,
     "durability": 10,
-    "flags": [ "NO_TURRET" ],
-    "modes": [ [ "DEFAULT", "default", 1 ], [ "BURST", "burst", 3 ] ],
+    "modes": [ [ "DEFAULT", "default", 1 ] ],
     "pocket_data": [
-      { "id": "ammo", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
+      { "id": "fuel", "pocket_type": "MAGAZINE", "rigid": true, "watertight": true, "ammo_restriction": { "gasoline": 50 } },
       {
         "id": "power",
         "magazine_well": "500 ml",
@@ -5761,10 +5760,7 @@
         "item_restriction": [ "heavy_battery_cell" ]
       }
     ],
-    "firing_requirements": {
-      "DEFAULT": [ { "pocket": "ammo", "qty": 1 }, { "pocket": "power", "qty": 5 } ],
-      "BURST": [ { "pocket": "ammo", "qty": 3 }, { "pocket": "power", "qty": 15 } ]
-    }
+    "firing_requirements": { "DEFAULT": [ { "pocket": "fuel", "qty": 5 }, { "pocket": "power", "qty": 2 } ] }
   },
   {
     "id": "test_multimag_turret_gun",
@@ -5784,6 +5780,74 @@
     "ranged_damage": { "damage_type": "bullet", "amount": 10 },
     "dispersion": 480,
     "durability": 10,
+    "modes": [ [ "DEFAULT", "default", 1 ], [ "BURST", "burst", 3 ] ],
+    "pocket_data": [
+      { "id": "ammo", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
+      {
+        "id": "power",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "heavy_battery_cell" ]
+      }
+    ],
+    "firing_requirements": {
+      "DEFAULT": [ { "pocket": "ammo", "qty": 1 }, { "pocket": "power", "qty": 5 } ],
+      "BURST": [ { "pocket": "ammo", "qty": 3 }, { "pocket": "power", "qty": 15 } ]
+    }
+  },
+  {
+    "id": "test_multimag_turret_gun_ups",
+    "type": "ITEM",
+    "subtypes": [ "GUN" ],
+    "name": { "str": "test multimag turret gun (USE_UPS)" },
+    "description": "Carrier-null isolation variant: same shape but flagged USE_UPS.",
+    "weight": "1000 g",
+    "volume": "1500 ml",
+    "longest_side": "400 mm",
+    "material": [ "steel" ],
+    "symbol": "(",
+    "color": "light_gray",
+    "ammo": [ "9mm" ],
+    "skill": "pistol",
+    "range": 10,
+    "ranged_damage": { "damage_type": "bullet", "amount": 10 },
+    "dispersion": 480,
+    "durability": 10,
+    "flags": [ "USE_UPS" ],
+    "modes": [ [ "DEFAULT", "default", 1 ], [ "BURST", "burst", 3 ] ],
+    "pocket_data": [
+      { "id": "ammo", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
+      {
+        "id": "power",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "heavy_battery_cell" ]
+      }
+    ],
+    "firing_requirements": {
+      "DEFAULT": [ { "pocket": "ammo", "qty": 1 }, { "pocket": "power", "qty": 5 } ],
+      "BURST": [ { "pocket": "ammo", "qty": 3 }, { "pocket": "power", "qty": 15 } ]
+    }
+  },
+  {
+    "id": "test_multimag_gun_consume",
+    "type": "ITEM",
+    "subtypes": [ "GUN" ],
+    "name": { "str": "test multimag consume gun" },
+    "description": "Test gun for multimag consumption: 9mm well + battery well, two modes.",
+    "weight": "1000 g",
+    "volume": "1500 ml",
+    "longest_side": "400 mm",
+    "material": [ "steel" ],
+    "symbol": "(",
+    "color": "light_gray",
+    "ammo": [ "9mm" ],
+    "skill": "pistol",
+    "range": 10,
+    "ranged_damage": { "damage_type": "bullet", "amount": 10 },
+    "dispersion": 480,
+    "durability": 10,
+    "flags": [ "NO_TURRET" ],
     "modes": [ [ "DEFAULT", "default", 1 ], [ "BURST", "burst", 3 ] ],
     "pocket_data": [
       { "id": "ammo", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
