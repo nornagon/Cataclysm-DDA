@@ -1119,6 +1119,11 @@ int Character::fire_gun( map &here, const tripoint_bub_ms &target, int shots, it
         const int ammo_left = ammo ? ammo.get_item()->count() : gun.ammo_remaining( );
         shots = std::min( shots, ammo_left / gun.ammo_required() );
     }
+    // Multimag vehicle turrets: also cap by per-pocket feasibility so the
+    // firing loop never overruns a vehicle-loaded battery pocket mid-burst.
+    if( gun.has_flag( flag_VEHICLE ) && gun.uses_firing_requirements() ) {
+        shots = std::min( shots, gun.shots_remaining( here, nullptr ) );
+    }
 
     if( shots <= 0 ) {
         debugmsg( "Attempted to fire zero or negative shots using %s", gun.tname() );
@@ -1274,14 +1279,11 @@ int Character::fire_gun( map &here, const tripoint_bub_ms &target, int shots, it
         }
 
         if( gun.uses_firing_requirements() ) {
-            // Turret install is filtered out at mountable_gun_filter; this
-            // catches debug-spawn or save-state pairings that bypass it.
-            if( gun.has_flag( flag_VEHICLE ) ) {
-                debugmsg( "TODO(multimag): turret + firing_requirements not "
-                          "supported, B2 reconciliation pending (%s)", gun.tname() );
-                break;
-            }
-            if( gun.consume_one_shot( here, pos_bub( here ), this ) != 1 ) {
+            // Vehicle turret passes nullptr carrier so multimag_drain skips
+            // player UPS/bionic. Vehicle is billed via drain_back_multimag
+            // in turret_data::post_fire.
+            Character *drain_carrier = gun.has_flag( flag_VEHICLE ) ? nullptr : this;
+            if( gun.consume_one_shot( here, pos_bub( here ), drain_carrier ) != 1 ) {
                 debugmsg( "Unexpected shortage of ammo whilst firing %s", gun.tname() );
                 break;
             }

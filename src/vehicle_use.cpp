@@ -1902,16 +1902,23 @@ void vpart_position::form_inventory( map &here, inventory &inv ) const
 
 static const gun_mode_id gun_mode_DEFAULT( "DEFAULT" );
 
-std::map<std::string, vehicle::multimag_pocket_state>
+std::map<std::string, multimag_pocket_state>
 vehicle::prepare_multimag_pockets( vehicle &veh, map &here, item &tool )
 {
-    using state_t = vehicle::multimag_pocket_state;
+    return prepare_multimag_pockets( veh, here, tool, gun_mode_DEFAULT, itype_id::NULL_ID() );
+}
+
+std::map<std::string, multimag_pocket_state>
+vehicle::prepare_multimag_pockets( vehicle &veh, map &here, item &tool,
+                                   const gun_mode_id &mode, const itype_id &preferred_primary )
+{
+    using state_t = multimag_pocket_state;
     std::map<std::string, state_t> out;
     if( !tool.uses_firing_requirements() ) {
         return out;
     }
     const std::vector<pocket_consumption_entry> *entries =
-        tool.type->firing_requirements.for_mode( gun_mode_DEFAULT );
+        tool.type->firing_requirements.for_mode( mode );
     if( entries == nullptr ) {
         return out;
     }
@@ -1928,6 +1935,11 @@ vehicle::prepare_multimag_pockets( vehicle &veh, map &here, item &tool )
         }
         const pocket_data *pdat = pkt->get_pocket_data();
         if( pdat == nullptr ) {
+            continue;
+        }
+        // Any existing content blocks prep, else drain_back would bill the
+        // vehicle for player-owned charges via the initial_qty delta.
+        if( !pkt->empty() ) {
             continue;
         }
 
@@ -1978,42 +1990,54 @@ vehicle::prepare_multimag_pockets( vehicle &veh, map &here, item &tool )
         }
 
         bool placed = false;
-        for( const std::pair<const ammotype, int> &ar : pdat->ammo_restriction ) {
-            // Scan tanks first; record the exact vpart and ammo itype so
-            // drain_back_multimag bills the same store with no re-search.
-            for( const vpart_reference &tvp :
-                 veh.get_avail_parts( vpart_bitflags::VPFLAG_FLUIDTANK ) ) {
-                const itype_id &tank_ammo = tvp.part().ammo_current();
-                if( tank_ammo.is_null() || !tank_ammo->ammo ) {
-                    continue;
+        // Two-pass tank picker: first pass honors `preferred_primary` if set
+        // (ammo_select preference for multi-tank turrets). Second pass falls
+        // back to first-match. Skips entirely if preference is not set.
+        for( int pass = 0; pass < 2 && !placed; pass++ ) {
+            const bool prefer_only = ( pass == 0 && !preferred_primary.is_null() );
+            if( pass == 0 && preferred_primary.is_null() ) {
+                continue;
+            }
+            for( const std::pair<const ammotype, int> &ar : pdat->ammo_restriction ) {
+                // Scan tanks; record the exact vpart and ammo itype so
+                // drain_back_multimag bills the same store with no re-search.
+                for( const vpart_reference &tvp :
+                     veh.get_avail_parts( vpart_bitflags::VPFLAG_FLUIDTANK ) ) {
+                    const itype_id &tank_ammo = tvp.part().ammo_current();
+                    if( tank_ammo.is_null() || !tank_ammo->ammo ) {
+                        continue;
+                    }
+                    if( tank_ammo->ammo->type != ar.first ) {
+                        continue;
+                    }
+                    if( prefer_only && tank_ammo != preferred_primary ) {
+                        continue;
+                    }
+                    const int vp_idx = static_cast<int>( tvp.part_index() );
+                    // Per-part ammo so two same-fuel tanks each have their own
+                    // budget; whole-vehicle fuel_left would let two pockets
+                    // double-claim the same global total.
+                    const int total = tvp.part().ammo_remaining();
+                    const int avail = std::max( 0, total - tank_claimed_by_vpart[vp_idx] );
+                    if( avail <= 0 ) {
+                        continue;
+                    }
+                    const int set_qty = std::min( avail, ar.second );
+                    item ammo_it( tank_ammo, calendar::turn, set_qty );
+                    if( pkt->insert_item( ammo_it ).success() ) {
+                        tank_claimed_by_vpart[vp_idx] += set_qty;
+                        state_t st;
+                        st.kind = state_t::source_kind::TANK;
+                        st.vpart_index = vp_idx;
+                        st.initial_qty = tool.ammo_remaining_in_pocket( pce.pocket );
+                        out.emplace( pce.pocket, st );
+                        placed = true;
+                        break;
+                    }
                 }
-                if( tank_ammo->ammo->type != ar.first ) {
-                    continue;
-                }
-                const int vp_idx = static_cast<int>( tvp.part_index() );
-                // Per-part ammo so two same-fuel tanks each have their own
-                // budget; whole-vehicle fuel_left would let two pockets
-                // double-claim the same global total.
-                const int total = tvp.part().ammo_remaining();
-                const int avail = std::max( 0, total - tank_claimed_by_vpart[vp_idx] );
-                if( avail <= 0 ) {
-                    continue;
-                }
-                const int set_qty = std::min( avail, ar.second );
-                item ammo_it( tank_ammo, calendar::turn, set_qty );
-                if( pkt->insert_item( ammo_it ).success() ) {
-                    tank_claimed_by_vpart[vp_idx] += set_qty;
-                    state_t st;
-                    st.kind = state_t::source_kind::TANK;
-                    st.vpart_index = vp_idx;
-                    st.initial_qty = tool.ammo_remaining_in_pocket( pce.pocket );
-                    out.emplace( pce.pocket, st );
-                    placed = true;
+                if( placed ) {
                     break;
                 }
-            }
-            if( placed ) {
-                break;
             }
         }
     }
@@ -2099,10 +2123,10 @@ int vehicle::prepare_tool( map &here, item &tool ) const
     if( tool.uses_firing_requirements() ) {
         // const_cast is safe: prepare_multimag_pockets only mutates the tool
         // and re-reads vehicle state. It does not modify vehicle storage.
-        const std::map<std::string, vehicle::multimag_pocket_state> bindings =
+        const std::map<std::string, multimag_pocket_state> bindings =
             vehicle::prepare_multimag_pockets( const_cast<vehicle &>( *this ), here, tool );
         int total = 0;
-        for( const std::pair<const std::string, vehicle::multimag_pocket_state> &b : bindings ) {
+        for( const std::pair<const std::string, multimag_pocket_state> &b : bindings ) {
             total = std::min( INT_MAX - b.second.initial_qty, total ) + b.second.initial_qty;
         }
         return total;
@@ -2149,7 +2173,7 @@ bool vehicle::use_vehicle_tool( vehicle &veh, map *here, const tripoint_bub_ms &
 {
     item tool( tool_type, calendar::turn );
     const bool is_multimag = !tool_type->firing_requirements.empty();
-    std::map<std::string, vehicle::multimag_pocket_state> mm_bindings;
+    std::map<std::string, multimag_pocket_state> mm_bindings;
     int ammo_in_tool = 0;
     int avail_ammo_amount = 0;
     itype_id ammo_type_id = itype_id::NULL_ID();

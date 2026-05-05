@@ -244,6 +244,17 @@ turret_data::status turret_data::query() const
 
     const item &gun = part->base;
 
+    if( gun.uses_firing_requirements() ) {
+        // Temp-copy the gun, prep vehicle-backed pockets, then ask the same
+        // mode-aware feasibility the firing path will use. Vehicle is never
+        // mutated by prepare_multimag_pockets (only the temp gun is loaded).
+        item gun_copy( gun );
+        const gun_mode_id mode = gun_copy.gun_get_mode_id();
+        vehicle::prepare_multimag_pockets( *veh, here, gun_copy, mode, ammo_current() );
+        return gun_copy.shots_remaining( here, nullptr ) >= 1
+               ? status::ready : status::no_ammo;
+    }
+
     if( uses_vehicle_tanks_or_batteries() ) {
         if( veh->fuel_left( here, ammo_current() ) < gun.ammo_required() ) {
             return status::no_ammo;
@@ -273,6 +284,14 @@ void turret_data::prepare_fire( Character &you )
     cached_recoil = you.recoil;
     you.recoil = 0;
 
+    item &gun = part->base;
+    if( gun.uses_firing_requirements() ) {
+        const gun_mode_id mode = gun.gun_get_mode_id();
+        mm_bindings_ = vehicle::prepare_multimag_pockets( *veh, here, gun, mode,
+                       ammo_current() );
+        return;
+    }
+
     // set fuel tank fluid as ammo, if appropriate
     if( uses_vehicle_tanks_or_batteries() ) {
         gun_mode mode = base()->gun_current_mode();
@@ -301,6 +320,19 @@ void turret_data::post_fire( map *here, Character &you, int shots )
             pocket->clear_items();
         }
     };
+
+    item &gun = part->base;
+    if( gun.uses_firing_requirements() ) {
+        // Bill bound pockets, clear only those so player-loaded pockets keep residue.
+        vehicle::drain_back_multimag( *veh, *here, gun, mm_bindings_ );
+        for( const auto &b : mm_bindings_ ) {
+            if( item_pocket *pkt = gun.pocket_by_id( b.first ) ) {
+                pkt->clear_items();
+            }
+        }
+        mm_bindings_.clear();
+        return;
+    }
 
     // handle draining of vehicle tanks or batteries, if applicable
     if( uses_vehicle_tanks_or_batteries() ) {

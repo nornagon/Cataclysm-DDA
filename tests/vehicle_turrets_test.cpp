@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 
+#include "calendar.h"
 #include "cata_catch.h"
 #include "character.h"
 #include "coordinates.h"
@@ -13,6 +14,7 @@
 #include "map.h"
 #include "map_helpers.h"
 #include "player_helpers.h"
+#include "pocket_type.h"
 #include "point.h"
 #include "ret_val.h"
 #include "type_id.h"
@@ -26,6 +28,14 @@
 static const ammo_effect_str_id ammo_effect_RECYCLED( "RECYCLED" );
 
 static const vproto_id vehicle_prototype_test_turret_rig( "test_turret_rig" );
+
+static const itype_id itype_9mm( "9mm" );
+static const itype_id itype_glockmag( "glockmag" );
+static const itype_id itype_test_multimag_gun_consume( "test_multimag_gun_consume" );
+static const itype_id itype_test_multimag_turret_gun( "test_multimag_turret_gun" );
+
+static const vpart_id vpart_turret_test_multimag_turret_gun( "turret_test_multimag_turret_gun" );
+static const vpart_id vpart_turret_test_multimag_gun_consume( "turret_test_multimag_gun_consume" );
 
 static std::vector<const vpart_info *> all_turret_types()
 {
@@ -127,5 +137,72 @@ TEST_CASE( "vehicle_turret", "[vehicle][gun][magazine]" )
             // heal the avatar from explosion damages
             clear_avatar();
         }
+    }
+}
+
+TEST_CASE( "vehicle_turret_multimag", "[vehicle][turret][multimag]" )
+{
+    clear_map_without_vision();
+    clear_avatar();
+    map &here = get_map();
+    Character &player_character = get_player_character();
+    const tripoint_bub_ms veh_pos( 65, 65, 0 );
+
+    SECTION( "multimag gun without NO_TURRET has an auto-generated turret vpart" ) {
+        // After dropping the firing_requirements early-return in mountable_gun_filter,
+        // vehicles::parts::finalize() generates `turret_<gun_id>` vparts for any
+        // mountable gun. This is the precondition for everything else below.
+        REQUIRE( vpart_turret_test_multimag_turret_gun.is_valid() );
+        // Per-gun NO_TURRET opt-out still suppresses generation.
+        REQUIRE_FALSE( vpart_turret_test_multimag_gun_consume.is_valid() );
+    }
+
+    SECTION( "install + query + fire happy path" ) {
+        vehicle *veh = here.add_vehicle( vehicle_prototype_test_turret_rig, veh_pos,
+                                         270_degrees, 0, 2, false, true );
+        REQUIRE( veh );
+
+        const int turr_idx = veh->install_part( here, point_rel_ms::zero,
+                                                vpart_turret_test_multimag_turret_gun );
+        REQUIRE( turr_idx >= 0 );
+        vehicle_part &vp = veh->part( turr_idx );
+        CHECK( vp.is_turret() );
+
+        REQUIRE( veh->turret_query( vp ).query() == turret_data::status::no_ammo );
+
+        // Charge battery (vehicle source for power well) but leave 9mm well empty.
+        const auto& [bat_current, bat_capacity] = veh->battery_power_level();
+        CHECK( bat_capacity > 0 );
+        veh->charge_battery( here, bat_capacity, /* apply_loss = */ false );
+        REQUIRE( veh->turret_query( vp ).query() == turret_data::status::no_ammo );
+
+        item mag( itype_glockmag );
+        mag.put_in( item( itype_9mm, calendar::turn, 15 ), pocket_type::MAGAZINE );
+        item base_copy( vp.get_base() );
+        REQUIRE( base_copy.put_in( mag, pocket_type::MAGAZINE_WELL ).success() );
+        vp.set_base( std::move( base_copy ) );
+
+        turret_data qry = veh->turret_query( vp );
+        REQUIRE( qry.query() == turret_data::status::ready );
+        REQUIRE( qry.range() > 0 );
+
+        const int batt_before = veh->battery_left( here, /* apply_loss = */ false );
+
+        player_character.setpos( here, veh->bub_part_pos( here, vp ) );
+        int shots_fired = 0;
+        for( int attempt = 0; shots_fired == 0 && attempt < 3; attempt++ ) {
+            shots_fired += qry.fire( player_character, &here,
+                                     player_character.pos_bub() + point( qry.range(), 0 ) );
+            clear_faults_from_vp( vp );
+        }
+        CHECK( shots_fired > 0 );
+
+        // Vehicle battery drained per power-pocket per_use (5 kJ DEFAULT).
+        const int batt_after = veh->battery_left( here, /* apply_loss = */ false );
+        CHECK( batt_before - batt_after == 5 * shots_fired );
+
+        here.destroy_vehicle( veh );
+        explosion_handler::process_explosions();
+        clear_avatar();
     }
 }

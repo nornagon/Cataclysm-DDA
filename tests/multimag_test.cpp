@@ -17,6 +17,7 @@
 #include "character_attire.h"
 #include "coordinates.h"
 #include "debug.h"
+#include "flag.h"
 #include "item.h"
 #include "item_group.h"
 #include "item_location.h"
@@ -61,6 +62,7 @@ static const itype_id itype_sw_619( "sw_619" );
 static const itype_id itype_test_multimag_gun( "test_multimag_gun" );
 static const itype_id itype_test_multimag_gun_consume( "test_multimag_gun_consume" );
 static const itype_id itype_test_multimag_gun_same_type( "test_multimag_gun_same_type" );
+static const itype_id itype_test_multimag_turret_gun( "test_multimag_turret_gun" );
 static const itype_id itype_test_multimag_tool_consume( "test_multimag_tool_consume" );
 static const itype_id itype_test_multimag_tool_factor( "test_multimag_tool_factor" );
 static const itype_id itype_test_multimag_vehicle_welder( "test_multimag_vehicle_welder" );
@@ -1369,14 +1371,18 @@ TEST_CASE( "expected_cost_per_use_sums_effective_qty",
     CHECK( legacy.expected_cost_per_use() == 1 );
 }
 
-TEST_CASE( "vehicle_turret_filter_rejects_multimag_guns",
-           "[multimag][consume]" )
+TEST_CASE( "vehicle_turret_filter_multimag_per_gun_opt_out", "[multimag][consume]" )
 {
-    item gun( itype_test_multimag_gun_consume );
-    REQUIRE( gun.uses_firing_requirements() );
-    // The filter (mountable_gun_filter in veh_type.cpp) is static-private; we
-    // only check the predicate it gates on here. Vehicle install integration
-    // is verified indirectly when no multimag gun appears in turret JSON.
+    SECTION( "NO_TURRET multimag gun keeps the per-gun opt-out" ) {
+        item gun( itype_test_multimag_gun_consume );
+        REQUIRE( gun.uses_firing_requirements() );
+        REQUIRE( gun.has_flag( flag_NO_TURRET ) );
+    }
+    SECTION( "multimag gun without NO_TURRET passes the filter" ) {
+        item gun( itype_test_multimag_turret_gun );
+        REQUIRE( gun.uses_firing_requirements() );
+        REQUIRE_FALSE( gun.has_flag( flag_NO_TURRET ) );
+    }
 }
 
 TEST_CASE( "Character_consume_charges_hard_guards_multimag_tools",

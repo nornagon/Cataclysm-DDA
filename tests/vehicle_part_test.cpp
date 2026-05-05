@@ -254,7 +254,7 @@ TEST_CASE( "vehicle_prepare_tool_multimag", "[vehicle][multimag]" )
         veh->part( tank2_idx ).ammo_set( itype_gasoline, 6 );
 
         item tool( itype_test_multimag_two_fluid );
-        const std::map<std::string, vehicle::multimag_pocket_state> bindings =
+        const std::map<std::string, multimag_pocket_state> bindings =
             vehicle::prepare_multimag_pockets( *veh, here, tool );
         REQUIRE( bindings.count( "left" ) );
         REQUIRE( bindings.count( "right" ) );
@@ -282,7 +282,7 @@ TEST_CASE( "vehicle_prepare_tool_multimag", "[vehicle][multimag]" )
         veh->charge_battery( here, 8 );
         REQUIRE( static_cast<int>( veh->battery_left( here ) ) == 8 );
 
-        const std::map<std::string, vehicle::multimag_pocket_state> bindings =
+        const std::map<std::string, multimag_pocket_state> bindings =
             vehicle::prepare_multimag_pockets( *veh, here, tool );
         const int left = bindings.count( "left" ) ? bindings.at( "left" ).initial_qty : 0;
         const int right = bindings.count( "right" ) ? bindings.at( "right" ).initial_qty : 0;
@@ -298,7 +298,7 @@ TEST_CASE( "vehicle_prepare_tool_multimag", "[vehicle][multimag]" )
         veh->charge_battery( here, 1000 );
         REQUIRE( static_cast<int>( veh->battery_left( here ) ) == 1000 );
 
-        const std::map<std::string, vehicle::multimag_pocket_state> bindings =
+        const std::map<std::string, multimag_pocket_state> bindings =
             vehicle::prepare_multimag_pockets( *veh, here, tool );
         REQUIRE( bindings.count( "core" ) );
         CHECK( bindings.at( "core" ).initial_qty == 40 );
@@ -321,7 +321,7 @@ TEST_CASE( "vehicle_prepare_tool_multimag", "[vehicle][multimag]" )
         veh->charge_battery( here, 350 );
         REQUIRE( static_cast<int>( veh->battery_left( here ) ) == 350 );
 
-        const std::map<std::string, vehicle::multimag_pocket_state> bindings =
+        const std::map<std::string, multimag_pocket_state> bindings =
             vehicle::prepare_multimag_pockets( *veh, here, tool );
         REQUIRE( bindings.count( "well" ) );
         REQUIRE( bindings.count( "direct" ) );
@@ -348,7 +348,7 @@ TEST_CASE( "vehicle_prepare_tool_multimag", "[vehicle][multimag]" )
 
     SECTION( "drain_back_multimag drains battery + tank per pocket" ) {
         item welder( itype_test_multimag_vehicle_combo );
-        const std::map<std::string, vehicle::multimag_pocket_state> bindings =
+        const std::map<std::string, multimag_pocket_state> bindings =
             vehicle::prepare_multimag_pockets( *veh, here, welder );
         REQUIRE( bindings.at( "power" ).initial_qty > 0 );
         REQUIRE( bindings.at( "fluid" ).initial_qty > 0 );

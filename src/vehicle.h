@@ -612,6 +612,15 @@ struct vehicle_part {
         }
 };
 
+// Per-pocket source binding from prepare_multimag_pockets, consumed by
+// drain_back_multimag to bill the same vehicle store for one fire cycle.
+struct multimag_pocket_state {
+    enum class source_kind { BATTERY, TANK };
+    int initial_qty = 0;
+    source_kind kind = source_kind::BATTERY;
+    int vpart_index = -1;
+};
+
 class turret_data
 {
         friend vehicle;
@@ -706,6 +715,10 @@ class turret_data
         turret_data( vehicle *veh, vehicle_part *part )
             : veh( veh ), part( part ) {}
         double cached_recoil = 0;
+        // Vehicle source bindings populated by prepare_fire for multimag
+        // turrets and consumed by post_fire to bill the same store. Lifetime
+        // is one fire() call; not serialized.
+        std::map<std::string, multimag_pocket_state> mm_bindings_;
 
     protected:
         vehicle *veh = nullptr;
@@ -1951,16 +1964,18 @@ class vehicle
         std::pair<const itype_id &, int> tool_ammo_available( map &here, const itype_id &tool_type ) const;
 
         // Multimag pseudo-tool support.
-        struct multimag_pocket_state {
-            enum class source_kind { BATTERY, TANK };
-            int initial_qty = 0;
-            source_kind kind = source_kind::BATTERY;
-            int vpart_index = -1;
-        };
         // Populates every consumption-schema pocket of a multimag tool from
         // vehicle batteries or tanks and returns per-pocket source bindings
         // keyed by pocket id. drain_back_multimag must consume the returned
         // map verbatim to keep prep and drain billing the same store.
+        // Pockets that already hold any content at call time are skipped:
+        // player-loaded pockets keep their ammo and stay unbound. Tank source
+        // picker prefers `preferred_primary` when set and the vehicle holds it.
+        static std::map<std::string, multimag_pocket_state> prepare_multimag_pockets(
+            vehicle &veh, map &here, item &tool, const gun_mode_id &mode,
+            const itype_id &preferred_primary = itype_id::NULL_ID() );
+        // Backwards-compatible wrapper for pseudo-tool callers that build a
+        // fresh tool every prep cycle and never need mode or ammo preference.
         static std::map<std::string, multimag_pocket_state> prepare_multimag_pockets(
             vehicle &veh, map &here, item &tool );
         static void drain_back_multimag( vehicle &veh, map &here, const item &tool,

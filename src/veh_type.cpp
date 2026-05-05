@@ -494,11 +494,6 @@ static bool mountable_gun_filter( const itype &guntype )
         return false;
     }
 
-    // TODO(multimag): turret + firing_requirements support pending.
-    if( !guntype.firing_requirements.empty() ) {
-        return false;
-    }
-
     return std::none_of( bad_flags.cbegin(), bad_flags.cend(), [&guntype]( const flag_id & flag ) {
         return guntype.has_flag( flag );
     } );

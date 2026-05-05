@@ -5767,6 +5767,39 @@
     }
   },
   {
+    "id": "test_multimag_turret_gun",
+    "type": "ITEM",
+    "subtypes": [ "GUN" ],
+    "name": { "str": "test multimag turret gun" },
+    "description": "Test multimag turret: 9mm well (player) + battery well (vehicle).",
+    "weight": "1000 g",
+    "volume": "1500 ml",
+    "longest_side": "400 mm",
+    "material": [ "steel" ],
+    "symbol": "(",
+    "color": "light_gray",
+    "ammo": [ "9mm" ],
+    "skill": "pistol",
+    "range": 10,
+    "ranged_damage": { "damage_type": "bullet", "amount": 10 },
+    "dispersion": 480,
+    "durability": 10,
+    "modes": [ [ "DEFAULT", "default", 1 ], [ "BURST", "burst", 3 ] ],
+    "pocket_data": [
+      { "id": "ammo", "magazine_well": "250 ml", "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "glockmag" ] },
+      {
+        "id": "power",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "heavy_battery_cell" ]
+      }
+    ],
+    "firing_requirements": {
+      "DEFAULT": [ { "pocket": "ammo", "qty": 1 }, { "pocket": "power", "qty": 5 } ],
+      "BURST": [ { "pocket": "ammo", "qty": 3 }, { "pocket": "power", "qty": 15 } ]
+    }
+  },
+  {
     "id": "test_multimag_tool_consume",
     "type": "ITEM",
     "subtypes": [ "TOOL" ],
