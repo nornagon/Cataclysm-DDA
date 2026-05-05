@@ -48,6 +48,7 @@ static const item_group_id Item_spawn_data_test_multimag_full_load( "test_multim
 static const itype_id itype_38_special( "38_special" );
 static const itype_id itype_556( "556" );
 static const itype_id itype_9mm( "9mm" );
+static const itype_id itype_UPS_ON( "UPS_ON" );
 static const itype_id itype_backpack( "backpack" );
 static const itype_id itype_battery( "battery" );
 static const itype_id itype_book_binder( "book_binder" );
@@ -56,19 +57,17 @@ static const itype_id itype_glock_19( "glock_19" );
 static const itype_id itype_glockmag( "glockmag" );
 static const itype_id itype_heavy_battery_cell( "heavy_battery_cell" );
 static const itype_id itype_medium_battery_cell( "medium_battery_cell" );
+static const itype_id itype_oxygen( "oxygen" );
 static const itype_id itype_paper( "paper" );
 static const itype_id itype_stanag30( "stanag30" );
 static const itype_id itype_sw_619( "sw_619" );
 static const itype_id itype_test_multimag_gun( "test_multimag_gun" );
 static const itype_id itype_test_multimag_gun_consume( "test_multimag_gun_consume" );
 static const itype_id itype_test_multimag_gun_same_type( "test_multimag_gun_same_type" );
-static const itype_id itype_test_multimag_turret_gun( "test_multimag_turret_gun" );
 static const itype_id itype_test_multimag_tool_consume( "test_multimag_tool_consume" );
 static const itype_id itype_test_multimag_tool_factor( "test_multimag_tool_factor" );
+static const itype_id itype_test_multimag_turret_gun( "test_multimag_turret_gun" );
 static const itype_id itype_test_multimag_vehicle_welder( "test_multimag_vehicle_welder" );
-static const itype_id itype_UPS( "UPS" );
-static const itype_id itype_UPS_ON( "UPS_ON" );
-static const itype_id itype_oxygen( "oxygen" );
 static const itype_id itype_welding_wire_steel( "welding_wire_steel" );
 
 static item make_loaded_glock()

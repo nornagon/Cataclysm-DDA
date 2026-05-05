@@ -4328,16 +4328,20 @@ void target_ui::panel_gun_info( int &text_y )
     nc_color clr = c_light_gray;
     print_colored_text( w_target, point( 1, text_y++ ), clr, clr, str );
 
-    if( status == Status::OutOfAmmo ) {
-        mvwprintz( w_target, point( 1, text_y++ ), c_red, _( "OUT OF AMMO" ) );
-    } else if( mode == TargetMode::TurretManual && turret &&
-               relevant->uses_firing_requirements() ) {
+    if( mode == TargetMode::TurretManual && turret &&
+        relevant->uses_firing_requirements() ) {
+        // Show panel even when not ready, so player sees which pocket is short.
+        if( status == Status::OutOfAmmo ) {
+            mvwprintz( w_target, point( 1, text_y++ ), c_red, _( "OUT OF AMMO" ) );
+        }
         const std::vector<multimag_display_pocket> dps = turret->multimag_display_state();
         for( const multimag_display_pocket &dp : dps ) {
             const itype *ad = dp.ammo_itype.is_null() ? nullptr : item::find_type( dp.ammo_itype );
             const std::string ammo_name = ad ? ad->nname( std::max( dp.effective_qty, 1 ) ) :
                                           dp.pocket_id;
             const nc_color ammo_clr = ad ? ad->color : c_light_gray;
+            const bool short_of_one_use = dp.effective_qty < dp.per_use_qty;
+            nc_color row_clr = short_of_one_use ? c_red : clr;
             std::string ammo_str;
             if( dp.vehicle_bound ) {
                 ammo_str = string_format( _( "%s: %s (vehicle %d, need %d)" ),
@@ -4348,8 +4352,10 @@ void target_ui::panel_gun_info( int &text_y )
                                           dp.pocket_id, colorize( ammo_name, ammo_clr ),
                                           dp.effective_qty, dp.per_use_qty );
             }
-            print_colored_text( w_target, point( 1, text_y++ ), clr, clr, ammo_str );
+            print_colored_text( w_target, point( 1, text_y++ ), row_clr, row_clr, ammo_str );
         }
+    } else if( status == Status::OutOfAmmo ) {
+        mvwprintz( w_target, point( 1, text_y++ ), c_red, _( "OUT OF AMMO" ) );
     } else if( ammo ) {
         bool is_favorite = relevant->is_ammo_container() && relevant->first_ammo().is_favorite;
         str = string_format( m->ammo_remaining( ) ? _( "Ammo: %s%s (%d/%d)" ) : _( "Ammo: %s%s" ),

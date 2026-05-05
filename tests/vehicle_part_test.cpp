@@ -43,18 +43,18 @@ static const damage_type_id damage_bash( "bash" );
 
 static const itype_id itype_backpack( "backpack" );
 static const itype_id itype_fridge_test( "fridge_test" );
+static const itype_id itype_gasoline( "gasoline" );
 static const itype_id itype_metal_tank_test( "metal_tank_test" );
 static const itype_id itype_oatmeal( "oatmeal" );
-static const itype_id itype_battery( "battery" );
-static const itype_id itype_gasoline( "gasoline" );
 static const itype_id itype_test_multimag_direct_battery( "test_multimag_direct_battery" );
 static const itype_id itype_test_multimag_mixed_battery( "test_multimag_mixed_battery" );
 static const itype_id itype_test_multimag_two_battery( "test_multimag_two_battery" );
-static const itype_id itype_water_purifier( "water_purifier" );
 static const itype_id itype_test_multimag_two_fluid( "test_multimag_two_fluid" );
 static const itype_id itype_test_multimag_vehicle_combo( "test_multimag_vehicle_combo" );
+static const itype_id itype_test_multimag_well_fluid( "test_multimag_well_fluid" );
 static const itype_id itype_water_clean( "water_clean" );
 static const itype_id itype_water_faucet( "water_faucet" );
+static const itype_id itype_water_purifier( "water_purifier" );
 
 static const recipe_id recipe_oatmeal_cooked( "oatmeal_cooked" );
 
@@ -240,6 +240,26 @@ TEST_CASE( "vehicle_prepare_tool_multimag", "[vehicle][multimag]" )
         veh->prepare_tool( here, welder );
         CHECK( welder.ammo_remaining_in_pocket( "power" ) > 0 );
         CHECK( welder.ammo_remaining_in_pocket( "fluid" ) > 0 );
+    }
+
+    SECTION( "MAGAZINE_WELL non-battery pocket synthesizes magazine from vehicle tank fluid" ) {
+        // Vehicle tank holds gasoline; tool's fuel pocket is MAGAZINE_WELL
+        // accepting a fluid magazine. Prep must synthesize the magazine and
+        // fill it from the tank, recording a TANK binding so drain_back
+        // bills the same vpart.
+        item tool( itype_test_multimag_well_fluid );
+        const std::map<std::string, multimag_pocket_state> bindings =
+            vehicle::prepare_multimag_pockets( *veh, here, tool );
+        REQUIRE( bindings.count( "fuel" ) );
+        CHECK( bindings.at( "fuel" ).kind == multimag_pocket_state::source_kind::TANK );
+        CHECK( bindings.at( "fuel" ).vpart_index == tank_idx );
+        CHECK( bindings.at( "fuel" ).initial_qty > 0 );
+
+        const int tank_before = veh->part( tank_idx ).ammo_remaining();
+        REQUIRE( tool.consume_tool_uses( 1, here, test_origin, nullptr ) == 1 );
+        vehicle::drain_back_multimag( *veh, here, tool, bindings );
+        // per_use=3 -> tank drained by exactly 3.
+        CHECK( veh->part( tank_idx ).ammo_remaining() == tank_before - 3 );
     }
 
     SECTION( "two same-fuel tanks bind each pocket to its own vpart" ) {

@@ -5982,6 +5982,41 @@
     "consumption_per_use": [ { "pocket": "power", "qty": 5 }, { "pocket": "fluid", "qty": 2 } ]
   },
   {
+    "id": "test_multimag_well_fluid_mag",
+    "type": "ITEM",
+    "subtypes": [ "MAGAZINE" ],
+    "name": { "str": "test multimag well fluid mag" },
+    "description": "Test fluid magazine for vehicle tank synth.",
+    "weight": "100 g",
+    "volume": "500 ml",
+    "material": [ "steel" ],
+    "symbol": "(",
+    "color": "white",
+    "ammo_type": [ "gasoline" ],
+    "pocket_data": [ { "pocket_type": "MAGAZINE", "rigid": true, "watertight": true, "ammo_restriction": { "gasoline": 40 } } ]
+  },
+  {
+    "id": "test_multimag_well_fluid",
+    "type": "ITEM",
+    "subtypes": [ "TOOL" ],
+    "name": { "str": "test multimag well fluid" },
+    "description": "Test multimag pseudo-tool: MAGAZINE_WELL accepting fluid magazine, sourced from vehicle tank.",
+    "weight": "500 g",
+    "volume": "750 ml",
+    "material": [ "steel" ],
+    "symbol": "&",
+    "color": "light_gray",
+    "pocket_data": [
+      {
+        "id": "fuel",
+        "magazine_well": "500 ml",
+        "pocket_type": "MAGAZINE_WELL",
+        "item_restriction": [ "test_multimag_well_fluid_mag" ]
+      }
+    ],
+    "consumption_per_use": [ { "pocket": "fuel", "qty": 3 } ]
+  },
+  {
     "id": "test_multimag_two_battery",
     "type": "ITEM",
     "subtypes": [ "TOOL" ],

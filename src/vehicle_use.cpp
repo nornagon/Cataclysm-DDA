@@ -85,6 +85,8 @@ static const furn_str_id furn_f_plant_harvest( "f_plant_harvest" );
 static const furn_str_id furn_f_plant_seed( "f_plant_seed" );
 static const furn_str_id furn_f_plant_unharvested_overgrown( "f_plant_unharvested_overgrown" );
 
+static const gun_mode_id gun_mode_DEFAULT( "DEFAULT" );
+
 static const itype_id fuel_type_battery( "battery" );
 static const itype_id fuel_type_muscle( "muscle" );
 static const itype_id fuel_type_none( "null" );
@@ -1900,8 +1902,6 @@ void vpart_position::form_inventory( map &here, inventory &inv ) const
     }
 }
 
-static const gun_mode_id gun_mode_DEFAULT( "DEFAULT" );
-
 std::map<std::string, multimag_pocket_state>
 vehicle::prepare_multimag_pockets( vehicle &veh, map &here, item &tool )
 {
@@ -1985,7 +1985,30 @@ vehicle::prepare_multimag_pockets( vehicle &veh, map &here, item &tool,
             }
             continue;
         }
-        if( pdat->type != pocket_type::MAGAZINE || pdat->ammo_restriction.empty() ) {
+        // Resolve which ammo_restriction map to feed from a vehicle tank.
+        // - Direct MAGAZINE: pocket's own ammo_restriction.
+        // - MAGAZINE_WELL: synthesize a magazine of the well's accepted itype
+        //   and use that magazine's MAGAZINE pocket ammo_restriction.
+        const std::map<ammotype, int> *target_restriction = nullptr;
+        itype_id synth_mag_type = itype_id::NULL_ID();
+        if( pdat->type == pocket_type::MAGAZINE && !pdat->ammo_restriction.empty() ) {
+            target_restriction = &pdat->ammo_restriction;
+        } else if( pdat->type == pocket_type::MAGAZINE_WELL && !pdat->item_id_restriction.empty() ) {
+            synth_mag_type = pdat->default_magazine.is_null() ?
+                             *pdat->item_id_restriction.begin() : pdat->default_magazine;
+            if( !synth_mag_type->magazine ) {
+                continue;
+            }
+            for( const pocket_data &mp : synth_mag_type->pockets ) {
+                if( mp.type == pocket_type::MAGAZINE && !mp.ammo_restriction.empty() ) {
+                    target_restriction = &mp.ammo_restriction;
+                    break;
+                }
+            }
+            if( target_restriction == nullptr ) {
+                continue;
+            }
+        } else {
             continue;
         }
 
@@ -1994,11 +2017,11 @@ vehicle::prepare_multimag_pockets( vehicle &veh, map &here, item &tool,
         // (ammo_select preference for multi-tank turrets). Second pass falls
         // back to first-match. Skips entirely if preference is not set.
         for( int pass = 0; pass < 2 && !placed; pass++ ) {
-            const bool prefer_only = ( pass == 0 && !preferred_primary.is_null() );
+            const bool prefer_only = pass == 0 && !preferred_primary.is_null();
             if( pass == 0 && preferred_primary.is_null() ) {
                 continue;
             }
-            for( const std::pair<const ammotype, int> &ar : pdat->ammo_restriction ) {
+            for( const std::pair<const ammotype, int> &ar : *target_restriction ) {
                 // Scan tanks; record the exact vpart and ammo itype so
                 // drain_back_multimag bills the same store with no re-search.
                 for( const vpart_reference &tvp :
@@ -2019,12 +2042,25 @@ vehicle::prepare_multimag_pockets( vehicle &veh, map &here, item &tool,
                     // double-claim the same global total.
                     const int total = tvp.part().ammo_remaining();
                     const int avail = std::max( 0, total - tank_claimed_by_vpart[vp_idx] );
-                    if( avail <= 0 ) {
+                    // Skip tanks that cannot fully cover one shot's requirement.
+                    // Otherwise a low tank would bind the pocket and starve a
+                    // sibling tank that could feed the gun. Use effective_qty
+                    // so gunmod ammo_to_fire / energy_drain modifiers count.
+                    if( avail < tool.effective_qty( pce ) ) {
                         continue;
                     }
                     const int set_qty = std::min( avail, ar.second );
-                    item ammo_it( tank_ammo, calendar::turn, set_qty );
-                    if( pkt->insert_item( ammo_it ).success() ) {
+                    bool inserted = false;
+                    if( synth_mag_type.is_null() ) {
+                        item ammo_it( tank_ammo, calendar::turn, set_qty );
+                        inserted = pkt->insert_item( ammo_it ).success();
+                    } else {
+                        item mag( synth_mag_type );
+                        mag.clear_items();
+                        mag.ammo_set( tank_ammo, set_qty );
+                        inserted = pkt->insert_item( mag ).success();
+                    }
+                    if( inserted ) {
                         tank_claimed_by_vpart[vp_idx] += set_qty;
                         state_t st;
                         st.kind = state_t::source_kind::TANK;

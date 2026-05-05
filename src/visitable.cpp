@@ -40,12 +40,12 @@
 
 static const bionic_id bio_ups( "bio_ups" );
 
-static const gun_mode_id gun_mode_DEFAULT( "DEFAULT" );
-
 static const flag_id json_flag_ITEM_BROKEN( "ITEM_BROKEN" );
 static const flag_id json_flag_PSEUDO( "PSEUDO" );
 static const flag_id json_flag_USES_BIONIC_POWER( "USES_BIONIC_POWER" );
 static const flag_id json_flag_USE_UPS( "USE_UPS" );
+
+static const gun_mode_id gun_mode_DEFAULT( "DEFAULT" );
 
 static const itype_id itype_UPS( "UPS" );
 static const itype_id itype_any( "any" );
