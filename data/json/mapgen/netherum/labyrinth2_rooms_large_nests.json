@@ -58,7 +58,7 @@
         "  PM     ",
         "         "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -79,7 +79,7 @@
         "  PM     ",
         "         "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -100,7 +100,7 @@
         "  PMMP   ",
         "         "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -121,7 +121,7 @@
         "  PMMP   ",
         "         "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -142,7 +142,7 @@
         " UPMMPU  ",
         "         "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -163,7 +163,7 @@
         " UPMMPU  ",
         "         "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -205,7 +205,7 @@
         "         ",
         "PPPP    ϴ"
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -226,7 +226,7 @@
         "ṪṪṪṪ     ",
         "ßßßß    ϴ"
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -268,7 +268,7 @@
         "         ",
         "         "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_dining_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -289,7 +289,7 @@
         " ßṪṪ     ",
         "         "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_dining_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -310,7 +310,7 @@
         " ßßßßßßß ",
         "         "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_dining_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -511,12 +511,12 @@
       "rotation": [ 0, 3 ],
       "rows": [
         "         ",
-        " ####### ",
-        " #XXXXX# ",
-        " #XXXXX# ",
-        " #XXXXX# ",
-        " #XXXXX# ",
-        " #$$I$$# ",
+        "         ",
+        "  #####  ",
+        "  #XXX#  ",
+        "  #XXX#  ",
+        "  #XXX#  ",
+        "  #$$$I  ",
         "         ",
         "         "
       ],
@@ -625,7 +625,7 @@
         "         ",
         "BlB   blB"
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_bunk_room_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -646,7 +646,7 @@
         "E        ",
         "EE    UUU"
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -667,7 +667,7 @@
         "   # #   ",
         "BlB# #blB"
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_bunk_room_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -778,7 +778,7 @@
         "           ",
         "           "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_dining_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -801,7 +801,7 @@
         "           ",
         "           "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -870,7 +870,7 @@
         "   C   c   ",
         "           "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -893,7 +893,7 @@
         "           ",
         "           "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -939,7 +939,7 @@
         "   ϟϟ  U   ",
         "           "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
@@ -1008,7 +1008,7 @@
         "   CcCcC   ",
         "           "
       ],
-      "palettes": [ "labyrinth2_nest_palette" ],
+      "palettes": [ "labyrinth2_nest_palette", "labyrinthine_item_palette_utility_tier0" ],
       "flags": [ "ERASE_ALL_BEFORE_PLACING_TERRAIN" ]
     }
   },
