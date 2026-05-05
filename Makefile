@@ -414,6 +414,12 @@ else
   endif
   CXX_WARNINGS += -Wno-unknown-warning
   WARNINGS += -Wno-unknown-warning
+  # GCC 16 -Wsfinae-incomplete: SFINAE on incomplete forward-declared types
+  # (e.g. std::reference_wrapper<vehicle>) is link-compatible across TUs.
+  GCC_MAJOR := $(shell $(CROSS)$(OS_COMPILER) -dumpversion 2>/dev/null | cut -d. -f1)
+  ifeq ($(shell expr $(GCC_MAJOR) \>= 16 2>/dev/null), 1)
+    CXX_WARNINGS += -Wno-error=sfinae-incomplete
+  endif
 endif
 
 STRIP = $(CROSS)strip
