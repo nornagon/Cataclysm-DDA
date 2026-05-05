@@ -1011,9 +1011,18 @@ ifeq ($(TARGETSYSTEM),LINUX)
   CXXFLAGS += -mcx16
   BINDIST_EXTRAS += cataclysm-launcher
   ifneq ("$(wildcard LICENSE-SDL.txt)","")
-    SDL2_solib = $(shell ldd $(TARGET) | grep libSDL2-2\.0 | cut -d ' ' -f 3)
-    INSTALL_EXTRAS += $(SDL2_solib)
+    ifeq ($(SDL3),1)
+      SDL_solibs = $(shell ldd $(TARGET) | awk '/libSDL3/ {print $$3}')
+    else
+      SDL_solibs = $(shell ldd $(TARGET) | grep libSDL2-2\.0 | cut -d ' ' -f 3)
+    endif
+    INSTALL_EXTRAS += $(SDL_solibs)
     BINDIST_EXTRAS += LICENSE-SDL.txt
+    ifeq ($(SDL3),1)
+      ifneq ("$(wildcard LICENSE-SDL3_mixer.txt)","")
+        BINDIST_EXTRAS += LICENSE-SDL3_mixer.txt
+      endif
+    endif
   endif
   ifeq ($(BACKTRACE),1)
     # -rdynamic needed for symbols in backtraces
@@ -1425,7 +1434,7 @@ ifeq ($(SOUND), 1)
 endif  # ifeq ($(SOUND), 1)
 endif  # ifeq ($(SDL3), 1)
 endif  # ifdef FRAMEWORK
-	dylibbundler -of -b -x $(APPRESOURCESDIR)/$(APPTARGET) -d $(APPRESOURCESDIR)/ -p @executable_path/
+	dylibbundler -of -b -x $(APPRESOURCESDIR)/$(APPTARGET) -d $(APPRESOURCESDIR)/ -p @executable_path/ $(addprefix -s ,$(DYLIBBUNDLER_SEARCH_PATHS))
 
 dmgdistclean:
 	rm -rf Cataclysm
@@ -1452,7 +1461,7 @@ endif  # ifeq ($(NATIVE), osx)
 $(BINDIST): distclean version $(TARGET) $(ZZIP_BIN) $(L10N) $(BINDIST_EXTRAS) $(BINDIST_LOCALE)
 	mkdir -p $(BINDIST_DIR)
 	cp -R $(TARGET) $(ZZIP_BIN) $(BINDIST_EXTRAS) $(BINDIST_DIR)
-	$(foreach lib,$(INSTALL_EXTRAS), install --strip $(lib) $(BINDIST_DIR))
+	$(foreach lib,$(INSTALL_EXTRAS),install --strip $(lib) $(BINDIST_DIR);)
 ifdef LANGUAGES
 	cp -R --parents lang/mo $(BINDIST_DIR)
 endif
