@@ -91,6 +91,7 @@ static const construction_category_id construction_category_ALL( "ALL" );
 static const construction_category_id construction_category_APPLIANCE( "APPLIANCE" );
 static const construction_category_id construction_category_DECONSTRUCT( "DECONSTRUCT" );
 static const construction_category_id construction_category_FILTER( "FILTER" );
+static const construction_category_id construction_category_OTHER( "OTHER" );
 static const construction_category_id construction_category_REPAIR( "REPAIR" );
 
 static const construction_group_str_id
@@ -1299,13 +1300,10 @@ bool can_construct( const construction &con, const tripoint_bub_ms &p )
     const map &here = get_map();
     const furn_id &f = here.furn( p );
     const ter_id &t = here.ter( p );
-    if( con.pre_specials.size() > 1 ) { // pre-functions
-        for( const auto &special : con.pre_specials ) {
-            if( !special( p ) ) {
-                return false;
-            }
-        }
-    } else if( !con.pre_special( p ) ) { // pre-function
+    // pre-functions
+    if( !std::all_of( con.pre_specials.begin(), con.pre_specials.end(), [&p]( const auto & fn ) {
+    return fn( p );
+    } ) ) {
         return false;
     }
     if( !has_pre_terrain( con, p ) || // terrain type
@@ -1547,12 +1545,8 @@ void build_construction_activity_actor::complete_construction( player_activity &
 
     // This comes after clearing the activity, in case the function interrupts
     // activities
-    if( built.post_specials.size() > 1 ) { // pre-functions
-        for( const auto &special : built.post_specials ) {
-            special( terp, you );
-        }
-    } else {
-        built.post_special( terp, you );
+    for( const auto &special : built.post_specials ) {
+        special( terp, you );
     }
     // Players will not automatically resume backlog, other Characters will.
     if( you.is_avatar() && !you.backlog.empty() &&
@@ -2310,22 +2304,27 @@ void construct::failure_deconstruct( const tripoint_bub_ms & )
     add_msg( m_info, _( "You cannot deconstruct this!" ) );
 }
 
-template <typename T>
-void assign_or_debugmsg( T &dest, const std::string &fun_id,
-                         const std::map<std::string, T> &possible )
-{
-    const auto iter = possible.find( fun_id );
-    if( iter != possible.end() ) {
-        dest = iter->second;
-    } else {
-        dest = possible.find( "" )->second;
-        const std::string list_available = enumerate_as_string( possible.begin(), possible.end(),
-        []( const std::pair<std::string, T> &pr ) {
-            return pr.first;
-        } );
-        debugmsg( "Unknown function: %s, available values are %s", fun_id.c_str(), list_available );
+template <typename Fn>
+struct construction_special_reader : generic_typed_reader<construction_special_reader<Fn>> {
+    const std::map<std::string, Fn> &possible;
+    explicit construction_special_reader( const std::map<std::string, Fn> &lookup ) : possible(
+            lookup ) {}
+
+    Fn get_next( const JsonValue &jv ) const {
+        std::string fun_id = jv.get_string();
+        const auto iter = possible.find( fun_id );
+        if( iter != possible.end() ) {
+            return iter->second;
+        } else {
+            const std::string list_available = enumerate_as_string( possible.begin(), possible.end(),
+            []( const std::pair<std::string, Fn> &pr ) {
+                return pr.first;
+            } );
+            jv.throw_error( string_format( "Unknown function: %s, available values are %s", fun_id.c_str(),
+                                           list_available ) );
+        }
     }
-}
+};
 
 void load_construction( const JsonObject &jo, const std::string &src )
 {
@@ -2334,22 +2333,19 @@ void load_construction( const JsonObject &jo, const std::string &src )
 
 void construction::load( const JsonObject &jo, const std::string_view )
 {
-    jo.get_member( "group" ).read( group );
+    mandatory( jo, was_loaded, "group", group );
     if( jo.has_member( "required_skills" ) ) {
-        for( JsonArray arr : jo.get_array( "required_skills" ) ) {
-            required_skills[skill_id( arr.get_string( 0 ) )] = arr.get_int( 1 );
-        }
-    } else {
-        skill_id legacy_skill( jo.get_string( "skill", skill_fabrication.str() ) );
-        int legacy_diff = jo.get_int( "difficulty" );
+        mandatory( jo, was_loaded, "required_skills", required_skills, pair_reader<skill_id, int> {} );
+    } else if( !was_loaded ) {
+        skill_id legacy_skill;
+        int legacy_diff;
+        optional( jo, was_loaded, "skill", legacy_skill, skill_fabrication );
+        mandatory( jo, was_loaded, "difficulty", legacy_diff );
         required_skills[ legacy_skill ] = legacy_diff;
     }
 
-    category = construction_category_id( jo.get_string( "category", "OTHER" ) );
-    if( jo.has_string( "time" ) ) {
-        time = to_moves<int>( read_from_json_string<time_duration>( jo.get_member( "time" ),
-                              time_duration::units ) );
-    }
+    optional( jo, was_loaded, "category", category, construction_category_OTHER );
+    optional( jo, was_loaded, "time", time, time_duration_as_moves_reader{} );
 
     const requirement_id req_id( "inline_construction_" + id.str() );
     requirement_data::load_requirement( jo, req_id );
@@ -2363,8 +2359,8 @@ void construction::load( const JsonObject &jo, const std::string_view )
         }
     }
 
-    jo.read( "pre_note", pre_note );
-    pre_terrain = jo.get_as_string_set( "pre_terrain" );
+    optional( jo, was_loaded, "pre_note", pre_note );
+    optional( jo, was_loaded, "pre_terrain", pre_terrain, auto_flags_reader<> {} );
     if( !pre_terrain.empty() ) {
         const std::string &first_pre_terrain = *pre_terrain.begin();
         if( first_pre_terrain.size() > 1
@@ -2374,7 +2370,7 @@ void construction::load( const JsonObject &jo, const std::string_view )
         }
     }
 
-    post_terrain = jo.get_string( "post_terrain", "" );
+    optional( jo, was_loaded, "post_terrain", post_terrain );
     if( post_terrain.size() > 1
         && post_terrain[0] == 'f'
         && post_terrain[1] == '_' ) {
@@ -2384,26 +2380,8 @@ void construction::load( const JsonObject &jo, const std::string_view )
     optional( jo, was_loaded, "activity_level", activity_level,
               activity_level_reader{}, MODERATE_EXERCISE );
 
-    if( jo.has_member( "pre_flags" ) ) {
-        pre_flags.clear();
-        if( jo.has_string( "pre_flags" ) ) {
-            pre_flags.emplace( jo.get_string( "pre_flags" ), false );
-        } else if( jo.has_object( "pre_flags" ) ) {
-            JsonObject jflag = jo.get_object( "pre_flags" );
-            pre_flags.emplace( jflag.get_string( "flag" ), jflag.get_bool( "force_terrain" ) );
-        } else if( jo.has_array( "pre_flags" ) ) {
-            for( JsonValue jval : jo.get_array( "pre_flags" ) ) {
-                if( jval.test_string() ) {
-                    pre_flags.emplace( jval.get_string(), false );
-                } else if( jval.test_object() ) {
-                    JsonObject jflag = jval.get_object();
-                    pre_flags.emplace( jflag.get_string( "flag" ), jflag.get_bool( "force_terrain" ) );
-                }
-            }
-        }
-    }
-
-    post_flags = jo.get_tags( "post_flags" );
+    optional( jo, was_loaded, "pre_flags", pre_flags, named_pair_reader<std::string, bool> { "flag", "force_terrain", false } );
+    optional( jo, was_loaded, "post_flags", post_flags, auto_flags_reader<> {} );
 
     if( jo.has_member( "byproducts" ) ) {
         byproduct_item_group = item_group::load_item_group( jo.get_member( "byproducts" ),
@@ -2472,41 +2450,24 @@ void construction::load( const JsonObject &jo, const std::string_view )
             { "deconstruct", construct::failure_deconstruct },
         }
     };
-    std::string failure_fallback = "standard";
-    if( jo.has_array( "pre_special" ) ) {
-        JsonArray jarr = jo.get_array( "pre_special" );
-        for( std::string special : jarr ) {
-            if( special == "check_deconstruct" ) {
-                failure_fallback =  "deconstruct";
-            }
-            assign_or_debugmsg( pre_special, special, pre_special_map );
-            pre_specials.push_back( pre_special );
-        }
-    } else {
-        const std::string special = jo.get_string( "pre_special", "" );
-        if( special == "check_deconstruct" ) {
-            failure_fallback =  "deconstruct";
-        }
-        assign_or_debugmsg( pre_special, special, pre_special_map );
-    }
-    if( jo.has_array( "post_special" ) ) {
-        JsonArray jarr = jo.get_array( "post_special" );
-        for( std::string special : jarr ) {
-            assign_or_debugmsg( post_special, special, post_special_map );
-            post_specials.push_back( post_special );
-        }
-    } else {
-        assign_or_debugmsg( post_special, jo.get_string( "post_special", "" ), post_special_map );
-    }
-    assign_or_debugmsg( do_turn_special, jo.get_string( "do_turn_special", "" ),
-                        do_turn_special_map );
-    assign_or_debugmsg( explain_failure, jo.get_string( "explain_failure", failure_fallback ),
-                        explain_fail_map );
-    vehicle_start = jo.get_bool( "vehicle_start", false );
+    optional( jo, was_loaded, "pre_special", pre_specials, construction_special_reader{ pre_special_map },
+    { construct::check_nothing } );
+    optional( jo, was_loaded, "post_special", post_specials, construction_special_reader{ post_special_map },
+    { construct::done_nothing } );
+    optional( jo, was_loaded, "do_turn_special", do_turn_special, construction_special_reader{ do_turn_special_map },
+              construct::done_nothing );
 
-    on_display = jo.get_bool( "on_display", true );
-    dark_craftable = jo.get_bool( "dark_craftable", false );
-    strict = jo.get_bool( "strict", false );
+    const bool fallback_deconstruct = std::any_of( pre_specials.begin(),
+    pre_specials.end(), []( const auto fn ) {
+        return fn == construct::check_deconstruct;
+    } );
+    optional( jo, was_loaded, "explain_failure", explain_failure, construction_special_reader{ explain_fail_map },
+              fallback_deconstruct ? construct::failure_deconstruct : construct::failure_standard );
+
+    optional( jo, was_loaded, "vehicle_start", vehicle_start, false );
+    optional( jo, was_loaded, "on_display", on_display, true );
+    optional( jo, was_loaded, "dark_craftable", dark_craftable, false );
+    optional( jo, was_loaded, "strict", strict, false );
 }
 
 void reset_constructions()

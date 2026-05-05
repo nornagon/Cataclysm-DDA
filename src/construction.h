@@ -79,12 +79,10 @@ struct construction {
         bool vehicle_start = false;
 
         // Custom constructibility check
-        bool ( *pre_special )( const tripoint_bub_ms & );
         std::vector<bool ( * )( const tripoint_bub_ms & )> pre_specials;
         // Custom while constructing effects
         void ( *do_turn_special )( const tripoint_bub_ms &, Character & );
         // Custom after-effects
-        void ( *post_special )( const tripoint_bub_ms &, Character & );
         std::vector<void ( * )( const tripoint_bub_ms &, Character & )> post_specials;
         // Custom error message display
         void ( *explain_failure )( const tripoint_bub_ms & );
