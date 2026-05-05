@@ -236,7 +236,7 @@ static std::map<construction_str_id, construction_id> construction_id_map;
 
 // Helper functions, nobody but us needs to call these.
 static bool can_construct( const construction &con );
-static std::vector<construction *> player_can_build_valid_constructions( Character &you,
+static std::vector<const construction *> player_can_build_valid_constructions( Character &you,
         const read_only_visitable &inv, const construction_group_str_id &group );
 static bool player_can_build( Character &you, const read_only_visitable &inv,
                               const construction_group_str_id &group );
@@ -286,18 +286,7 @@ static bool has_pre_terrain( const construction &con )
     return false;
 }
 
-void standardize_construction_times( const int time )
-{
-    if( !finalized ) {
-        debugmsg( "standardize_construction_times called before finalization" );
-        return;
-    }
-    for( construction &c : constructions ) {
-        c.time = time;
-    }
-}
-
-std::vector<construction *> constructions_by_group( const construction_group_str_id &group )
+std::vector<const construction *> constructions_by_group( const construction_group_str_id &group )
 {
     return constructions_by_filter(
     [&group]( construction const & it ) {
@@ -305,15 +294,15 @@ std::vector<construction *> constructions_by_group( const construction_group_str
     } );
 }
 
-std::vector<construction *>
+std::vector<const construction *>
 constructions_by_filter( std::function<bool( construction const & )> const &filter )
 {
     if( !finalized ) {
         debugmsg( "constructions_by_filter called before finalization" );
         return {};
     }
-    std::vector<construction *> result;
-    for( construction &constructions_a : constructions ) {
+    std::vector<const construction *> result;
+    for( const construction &constructions_a : get_constructions() ) {
         if( filter( constructions_a ) ) {
             result.push_back( &constructions_a );
         }
@@ -332,7 +321,7 @@ static void load_available_constructions( std::vector<construction_group_str_id>
         return;
     }
     avatar &player_character = get_avatar();
-    for( construction &it : constructions ) {
+    for( const construction &it : get_constructions() ) {
         if( !it.on_display ) {
             continue;
         }
@@ -394,8 +383,8 @@ static nc_color construction_color( const construction_group_str_id &group, bool
     if( player_character.has_trait( trait_DEBUG_HS ) ) {
         col = c_white;
     } else {
-        std::vector<construction *> cons = player_can_build_valid_constructions( player_character,
-                                           player_character.crafting_inventory(), group );
+        std::vector<const construction *> cons = player_can_build_valid_constructions( player_character,
+                player_character.crafting_inventory(), group );
         if( !cons.empty() ) {
             col = c_white;
             for( const auto &pr : cons.front()->required_skills ) {
@@ -438,7 +427,7 @@ static std::string furniture_qualities_string( const furn_id &fid )
     return ret;
 }
 
-static std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<construction *>>
+static std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<const construction *>>
         valid_constructions_near_player( const std::vector<construction_group_str_id> &groups,
                 const inventory &total_inv, avatar &player_character );
 
@@ -602,17 +591,17 @@ construction_id construction_menu( const bool blueprint )
             //construct the project list buffer
 
             // Print stages and their requirement.
-            std::vector<construction *> options = constructions_by_group( current_group );
+            std::vector<const construction *> options = constructions_by_group( current_group );
 
             construct_buffers.clear();
             current_construct_breakpoint = 0;
             construct_buffer_breakpoints.clear();
             full_construct_buffer.clear();
             int stage_counter = 0;
-            for( std::vector<construction *>::iterator it = options.begin();
+            for( std::vector<const construction *>::iterator it = options.begin();
                  it != options.end(); ++it ) {
                 stage_counter++;
-                construction *current_con = *it;
+                const construction *current_con = *it;
                 if( filter_mode == 1 ) {
                     // show stages where skills & materials are satisfied but location is not
                     if( !( player_can_build( player_character, total_inv, *current_con, true ) &&
@@ -1140,16 +1129,16 @@ construction_id construction_menu( const bool blueprint )
     return ret;
 }
 
-static std::vector<construction *> player_can_build_valid_constructions( Character &you,
+std::vector<const construction *> player_can_build_valid_constructions( Character &you,
         const read_only_visitable &inv,
         const construction_group_str_id &group )
 {
-    std::vector<construction *> result;
+    std::vector<const construction *> result;
 
     // check all with the same group to see if player can build any
     // if so, it will be added to the result
-    std::vector<construction *> cons = constructions_by_group( group );
-    for( construction *&con : cons ) {
+    std::vector<const construction *> cons = constructions_by_group( group );
+    for( const construction *&con : cons ) {
         if( player_can_build( you, inv, *con ) ) {
             result.push_back( con );
         }
@@ -1161,8 +1150,8 @@ bool player_can_build( Character &you, const read_only_visitable &inv,
                        const construction_group_str_id &group )
 {
     // check all with the same group to see if player can build any
-    std::vector<construction *> cons = constructions_by_group( group );
-    for( construction *&con : cons ) {
+    std::vector<const construction *> cons = constructions_by_group( group );
+    for( const construction *&con : cons ) {
         if( player_can_build( you, inv, *con ) ) {
             return true;
         }
@@ -1192,8 +1181,8 @@ bool player_can_see_to_build( Character &you, const construction_group_str_id &g
     if( you.fine_detail_vision_mod() < 4 || you.has_trait( trait_DEBUG_HS ) ) {
         return true;
     }
-    std::vector<construction *> cons = constructions_by_group( group );
-    for( construction *&con : cons ) {
+    std::vector<const construction *> cons = constructions_by_group( group );
+    for( const construction *&con : cons ) {
         if( con->dark_craftable ) {
             return true;
         }
@@ -1319,16 +1308,16 @@ bool can_construct( const construction &con )
     return false;
 }
 
-std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<construction *>>
+std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<const construction *>>
         valid_constructions_near_player( const std::vector<construction_group_str_id> &groups,
                 const inventory &total_inv, avatar &player_character )
 {
-    std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<construction *>> ret;
+    std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<const construction *>> ret;
     std::map<tripoint_bub_ms, const construction *> &valid = ret.first;
-    std::vector<construction *> &cons = ret.second;
+    std::vector<const construction *> &cons = ret.second;
     map &here = get_map();
     for( construction_group_str_id const &group : groups ) {
-        std::vector<construction *> const temp = constructions_by_group( group );
+        std::vector<const construction *> const temp = constructions_by_group( group );
         for( const tripoint_bub_ms &p : here.points_in_radius( player_character.pos_bub(), 1 ) ) {
             for( const auto *con : temp ) {
                 if( p != player_character.pos_bub() && can_construct( *con, p ) &&
@@ -1347,10 +1336,10 @@ void place_construction( std::vector<construction_group_str_id> const &groups )
     avatar &player_character = get_avatar();
     const inventory &total_inv = player_character.crafting_inventory();
 
-    std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<construction *>>
+    std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<const construction *>>
             valid_pair = valid_constructions_near_player( groups, total_inv, player_character );
     std::map<tripoint_bub_ms, const construction *> &valid = valid_pair.first;
-    std::vector<construction *> &cons = valid_pair.second;
+    std::vector<const construction *> &cons = valid_pair.second;
     map &here = get_map();
 
     bool blink = true;
@@ -2683,7 +2672,7 @@ std::vector<construction_id> find_build_sequence( const std::string &target_id,
 {
     // make a post_terrain->construction multimap for speedy search
     std::unordered_multimap<std::string, const construction *> construction_map;
-    for( construction const &cons : constructions ) {
+    for( construction const &cons : get_constructions() ) {
         if( !filter( cons ) ) {
             continue;
         }

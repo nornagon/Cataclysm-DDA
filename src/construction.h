@@ -116,9 +116,6 @@ struct construction {
 
 const std::vector<construction> &get_constructions();
 
-//! Set all constructions to take the specified time.
-void standardize_construction_times( int time );
-
 void place_construction( std::vector<construction_group_str_id> const &groups );
 void load_construction( const JsonObject &jo );
 void reset_constructions();
@@ -127,9 +124,10 @@ bool has_pre_flags( const construction &con, furn_id const &f, ter_id const &t )
 bool can_construct( const construction &con, const tripoint_bub_ms &p );
 bool player_can_build( Character &you, const read_only_visitable &inv, const construction &con,
                        bool can_construct_skip = false );
-std::vector<construction *> constructions_by_group( const construction_group_str_id &group );
-std::vector<construction *> constructions_by_filter( std::function<bool( construction const & )>
-        const &filter );
+std::vector<const construction *> constructions_by_group( const construction_group_str_id &group );
+std::vector<const construction *> constructions_by_filter(
+    std::function<bool( construction const & )>
+    const &filter );
 void check_constructions();
 void finalize_constructions();
 std::vector<construction_id> find_build_sequence( const std::string &target_id,
