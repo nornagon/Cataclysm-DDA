@@ -1403,3 +1403,8 @@ int item_location::get_quality( const std::string &quality, bool strict_boiling 
     quality_id qualityid( quality );
     return tool->get_quality_nonrecursive( qualityid, strict_boiling );
 }
+
+item_location find_item_by_uid( int64_t /*uid*/, const item_locator_hint &/*hint*/ )
+{
+    return item_location::nowhere;
+}
