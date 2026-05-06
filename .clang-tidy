@@ -125,6 +125,15 @@ Checks: [
 
     # ====  Disabled noise from checks introduced in LLVM 21+  ====
     -readability-use-concise-preprocessor-directives,
+
+    # ====  Disabled noise from checks introduced in LLVM 22+  ====
+    -bugprone-derived-method-shadowing-base-method,     # store/load/kcal_range are intentional; wield audit pending
+    -bugprone-std-namespace-modification,               # std::hash<UserType> specializations are legal
+    -bugprone-throwing-static-initialization,           # every static const xxx_id ID(...) trips it
+    -misc-multiple-inheritance,                         # Character: Creature, visitable is intentional
+    -misc-override-with-different-visibility,           # can_resume_with_internal access change is intentional
+    -modernize-avoid-c-style-cast,                      # codebase uses C-style casts widely
+    -readability-container-size-empty,                  # auto-fix !empty() differs from size()==N inside Catch2 macros
 ]
 
 WarningsAsErrors: '*'
