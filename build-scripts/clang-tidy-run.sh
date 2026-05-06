@@ -5,7 +5,11 @@
 echo "Using bash version $BASH_VERSION"
 set -exo pipefail
 
-num_jobs=3
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(dirname "$script_dir")"
+
+num_jobs=${num_jobs:-3}
+build_dir=${CATA_BUILD_DIR:-build}
 
 # enable all the switches by default
 BACKTRACE=${BACKTRACE:-1}
@@ -14,8 +18,10 @@ TILES=${TILES:-1}
 SOUND=${SOUND:-1}
 
 # create compilation database (compile_commands.json)
-mkdir -p build
-cd build
+mkdir -p "$build_dir"
+build_dir="$(cd "$build_dir" && pwd)"
+export CATA_BUILD_DIR="$build_dir"
+cd "$build_dir"
 cmake \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
     ${COMPILER:+-DCMAKE_CXX_COMPILER=$COMPILER} \
@@ -24,11 +30,11 @@ cmake \
     -DLOCALIZE=${LOCALIZE} \
     -DTILES=${TILES} \
     -DSOUND=${SOUND} \
-    ..
-cd ..
-ln --force --symbolic build/compile_commands.json .
+    "$repo_root"
+cd "$repo_root"
+ln --force --symbolic "${build_dir}/compile_commands.json" .
 
-if [ ! -f build/tools/clang-tidy-plugin/libCataAnalyzerPlugin.so ]
+if [ ! -f "${build_dir}/tools/clang-tidy-plugin/libCataAnalyzerPlugin.so" ]
 then
     echo "Cata plugin not found. Assuming we're in CI and bailing out."
     echo "If you are running clang-tidy locally with no plugin, consider"
@@ -58,7 +64,7 @@ then
     TIDY="all"
 fi
 
-all_cpp_files="$(jq -r '.[].file | select(contains("third-party") | not)' build/compile_commands.json)"
+all_cpp_files="$(jq -r '.[].file | select(contains("third-party") | not)' "${build_dir}/compile_commands.json")"
 if [ "$TIDY" == "all" ]
 then
     echo "Analyzing all files"
