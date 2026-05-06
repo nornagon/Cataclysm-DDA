@@ -33,6 +33,9 @@
 #include "imgui.h"
 #ifndef IMGUI_DISABLE
 #include "imgui_impl_sdlrenderer3.h"
+// START CDDA PATCH #72579
+#include <functional>
+// END CDDA PATCH #72579
 #include <stdint.h>     // intptr_t
 
 // Clang warnings with -Weverything
@@ -113,6 +116,15 @@ void ImGui_ImplSDLRenderer3_NewFrame()
     if (!bd->FontTexture)
         ImGui_ImplSDLRenderer3_CreateDeviceObjects();
 }
+
+// START CDDA PATCH #72579
+std::function<void(const ImFontGlyphToDraw &)> drawFallbackGlyphCallback;
+
+void ImGui_ImplSDLRenderer3_SetFallbackGlyphDrawCallback(std::function<void(const ImFontGlyphToDraw &)> func)
+{
+    drawFallbackGlyphCallback = func;
+}
+// END CDDA PATCH #72579
 
 // https://github.com/libsdl-org/SDL/issues/9009
 static int SDL_RenderGeometryRaw8BitColor(SDL_Renderer* renderer, ImVector<SDL_FColor>& colors_out, SDL_Texture* texture, const float* xy, int xy_stride, const SDL_Color* color, int color_stride, const float* uv, int uv_stride, int num_vertices, const void* indices, int num_indices, int size_indices)
@@ -226,6 +238,15 @@ void ImGui_ImplSDLRenderer3_RenderDrawData(ImDrawData* draw_data, SDL_Renderer* 
                     draw_list->VtxBuffer.Size - pcmd->VtxOffset,
                     idx_buffer + pcmd->IdxOffset, pcmd->ElemCount, sizeof(ImDrawIdx));
             }
+// START CDDA PATCH #72579
+            if(drawFallbackGlyphCallback)
+            {
+                for(const ImFontGlyphToDraw &glyphToDraw : draw_list->FallbackGlyphs)
+                {
+                    drawFallbackGlyphCallback(glyphToDraw);
+                }
+            }
+// END CDDA PATCH #72579
         }
     }
     platform_io.Renderer_RenderState = nullptr;

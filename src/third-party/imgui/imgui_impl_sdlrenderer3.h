@@ -23,6 +23,9 @@
 // - Introduction, links and more at the top of imgui.cpp
 
 #pragma once
+// START CDDA PATCH #72579
+#include <functional>
+// END CDDA PATCH #72579
 #include "imgui.h"      // IMGUI_IMPL_API
 #ifndef IMGUI_DISABLE
 
@@ -32,6 +35,9 @@ struct SDL_Renderer;
 IMGUI_IMPL_API bool     ImGui_ImplSDLRenderer3_Init(SDL_Renderer* renderer);
 IMGUI_IMPL_API void     ImGui_ImplSDLRenderer3_Shutdown();
 IMGUI_IMPL_API void     ImGui_ImplSDLRenderer3_NewFrame();
+// START CDDA PATCH #72579
+IMGUI_IMPL_API void     ImGui_ImplSDLRenderer3_SetFallbackGlyphDrawCallback(std::function<void(const ImFontGlyphToDraw &)> func);
+// END CDDA PATCH #72579
 IMGUI_IMPL_API void     ImGui_ImplSDLRenderer3_RenderDrawData(ImDrawData* draw_data, SDL_Renderer* renderer);
 
 // Called by Init/NewFrame/Shutdown

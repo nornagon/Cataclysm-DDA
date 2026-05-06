@@ -389,9 +389,28 @@ bool ImGui_ImplSDL3_ProcessEvent(const SDL_Event* event)
         {
             if (ImGui_ImplSDL3_GetViewportForWindowID(event->text.windowID) == nullptr)
                 return false;
+// START CDDA PATCH #72645
+            io.ClearPreEditText();
+// END CDDA PATCH #72645
             io.AddInputCharactersUTF8(event->text.text);
             return true;
         }
+// START CDDA PATCH #72645
+        case SDL_EVENT_TEXT_EDITING:
+        {
+            if (ImGui_ImplSDL3_GetViewportForWindowID(event->edit.windowID) == nullptr)
+                return false;
+            if (event->edit.text != nullptr && strlen(event->edit.text) > 0)
+            {
+                io.SetPreEditText(event->edit.text);
+            }
+            else
+            {
+                io.ClearPreEditText();
+            }
+            return true;
+        }
+// END CDDA PATCH #72645
         case SDL_EVENT_KEY_DOWN:
         case SDL_EVENT_KEY_UP:
         {
@@ -422,6 +441,9 @@ bool ImGui_ImplSDL3_ProcessEvent(const SDL_Event* event)
             if (ImGui_ImplSDL3_GetViewportForWindowID(event->window.windowID) == nullptr)
                 return false;
             bd->MousePendingLeaveFrame = ImGui::GetFrameCount() + 1;
+// START CDDA PATCH #72645
+            io.ClearPreEditText();
+// END CDDA PATCH #72645
             return true;
         }
         case SDL_EVENT_WINDOW_FOCUS_GAINED:
@@ -430,6 +452,12 @@ bool ImGui_ImplSDL3_ProcessEvent(const SDL_Event* event)
             if (ImGui_ImplSDL3_GetViewportForWindowID(event->window.windowID) == nullptr)
                 return false;
             io.AddFocusEvent(event->type == SDL_EVENT_WINDOW_FOCUS_GAINED);
+// START CDDA PATCH #72645
+            if (event->type == SDL_EVENT_WINDOW_FOCUS_LOST)
+            {
+                io.ClearPreEditText();
+            }
+// END CDDA PATCH #72645
             return true;
         }
         case SDL_EVENT_GAMEPAD_ADDED:
@@ -794,7 +822,9 @@ void ImGui_ImplSDL3_NewFrame()
     }
 
     ImGui_ImplSDL3_UpdateMouseData();
-    ImGui_ImplSDL3_UpdateMouseCursor();
+// START CDDA PATCH #72029
+    //ImGui_ImplSDL3_UpdateMouseCursor();
+// END CDDA PATCH #72029
 
     // Update game controllers (if enabled and available)
     ImGui_ImplSDL3_UpdateGamepads();
