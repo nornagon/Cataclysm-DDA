@@ -114,6 +114,14 @@ Checks: [
     -readability-simplify-boolean-expr,
     -readability-suspicious-call-argument,
     -readability-use-anyofallof,
+
+    # ====  Disabled noise from checks introduced in LLVM 19+  ====
+    # clang-tidy silently ignores unknown check names, so entries here only
+    # take effect on toolchains that already ship the corresponding check.
+    -bugprone-crtp-constructor-accessibility,           # CRTP base ctors are public on purpose
+    -modernize-avoid-c-arrays,                          # false-positive inside std::enable_if_t<>
+    -readability-math-missing-parentheses,              # would add parens around almost every existing binary op
+    -readability-use-std-min-max,                       # if/else clamp idiom is preferred to std::min/max here
 ]
 
 WarningsAsErrors: '*'
