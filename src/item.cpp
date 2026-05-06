@@ -4580,11 +4580,12 @@ bool item::process_wet( Character *carrier, const tripoint_bub_ms & /*pos*/ )
 
 std::vector<desired_wakeup> item::enumerate_scheduled_wakeups() const
 {
-    return {};
+    return enumerate_scheduled_dispatch( *this );
 }
 
-void item::actualize_scheduled( item_wakeup_kind /*kind*/, time_point /*now*/ )
+void item::actualize_scheduled( item_wakeup_kind kind, time_point now )
 {
+    actualize_scheduled_dispatch( *this, kind, now );
 }
 
 bool item::process( map &here, Character *carrier, const tripoint_bub_ms &pos, float insulation,
