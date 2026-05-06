@@ -49,6 +49,7 @@
 #include "vehicle_selector.h"
 #include "visitable.h"
 #include "vpart_position.h"
+#include "vpart_range.h"
 
 // Legacy: positional index lookup, used only for serializing idx (kept for old-save compat
 // from before #85905) and vehicle base items. Once legacy save support is dropped, this can
