@@ -65,7 +65,7 @@ cmake \
 
 
 echo "Compiling clang-tidy plugin"
-make -j$num_jobs CataAnalyzerPlugin
+make -j"$num_jobs" CataAnalyzerPlugin
 #export PATH=$PWD/tools/clang-tidy-plugin/clang-tidy-plugin-support/bin:$PATH
 # add FileCheck and the matching clang-tidy to the search path
 export PATH="${llvm_prefix}/bin:$PATH"

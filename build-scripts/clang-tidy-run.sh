@@ -26,10 +26,10 @@ cmake \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
     ${COMPILER:+-DCMAKE_CXX_COMPILER=$COMPILER} \
     -DCMAKE_BUILD_TYPE="Release" \
-    -DBACKTRACE=${BACKTRACE} \
-    -DLOCALIZE=${LOCALIZE} \
-    -DTILES=${TILES} \
-    -DSOUND=${SOUND} \
+    -DBACKTRACE="${BACKTRACE}" \
+    -DLOCALIZE="${LOCALIZE}" \
+    -DTILES="${TILES}" \
+    -DSOUND="${SOUND}" \
     "$repo_root"
 cd "$repo_root"
 ln --force --symbolic "${build_dir}/compile_commands.json" .
@@ -39,7 +39,7 @@ then
     echo "Cata plugin not found. Assuming we're in CI and bailing out."
     echo "If you are running clang-tidy locally with no plugin, consider"
     echo "calling it explicitly with the files you care to check."
-    echo 'e.g. `clang-tidy src/item* tests/item*` '
+    echo "e.g. clang-tidy src/item* tests/item*"
     exit 1
 fi
 
@@ -56,7 +56,7 @@ set +x
 
 # Check for changes to any files that would require us to run clang-tidy across everything
 changed_global_files="$( ( cat ./files_changed || echo 'unknown' ) | \
-    egrep -i "clang-tidy-build.sh|clang-tidy-run.sh|clang-tidy-wrapper.sh|clang-tidy.yml|.clang-tidy|files_changed|get_affected_files.py|CMakeLists.txt|CMakePresets.json|unknown" || true )"
+    grep -Ei "clang-tidy-build.sh|clang-tidy-run.sh|clang-tidy-wrapper.sh|clang-tidy.yml|.clang-tidy|files_changed|get_affected_files.py|CMakeLists.txt|CMakePresets.json|unknown" || true )"
 if [ -n "$changed_global_files" ]
 then
     first_changed_file="$(echo "$changed_global_files" | head -n 1)"
@@ -72,12 +72,12 @@ then
 else
     make \
         --silent \
-        -j $num_jobs \
-        ${COMPILER:+COMPILER=$COMPILER} \
-        BACKTRACE=${BACKTRACE} \
-        LOCALIZE=${LOCALIZE} \
-        TILES=${TILES} \
-        SOUND=${SOUND} \
+        -j "$num_jobs" \
+        ${COMPILER:+COMPILER="$COMPILER"} \
+        BACKTRACE="${BACKTRACE}" \
+        LOCALIZE="${LOCALIZE}" \
+        TILES="${TILES}" \
+        SOUND="${SOUND}" \
         includes
 
     tidyable_cpp_files="$( \
