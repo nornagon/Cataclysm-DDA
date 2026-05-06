@@ -122,6 +122,9 @@ Checks: [
     -modernize-avoid-c-arrays,                          # false-positive inside std::enable_if_t<>
     -readability-math-missing-parentheses,              # would add parens around almost every existing binary op
     -readability-use-std-min-max,                       # if/else clamp idiom is preferred to std::min/max here
+
+    # ====  Disabled noise from checks introduced in LLVM 21+  ====
+    -readability-use-concise-preprocessor-directives,
 ]
 
 WarningsAsErrors: '*'
