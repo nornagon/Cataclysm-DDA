@@ -1538,6 +1538,48 @@
     "max_coverage": 40
   },
   {
+    "id": "leg_hip_gastropod_l",
+    "type": "sub_body_part",
+    "max_coverage": 5,
+    "parent": "gastropod_foot",
+    "side": "left",
+    "opposite": "leg_hip_gastropod_r",
+    "name_multiple": "hips",
+    "name": "left hip",
+    "similar_bodypart": "leg_hip_l"
+  },
+  {
+    "id": "leg_hip_gastropod_r",
+    "type": "sub_body_part",
+    "max_coverage": 5,
+    "parent": "gastropod_foot",
+    "side": "right",
+    "opposite": "leg_hip_gastropod_l",
+    "name_multiple": "hips",
+    "name": "left hip",
+    "similar_bodypart": "leg_hip_r"
+  },
+  {
+    "id": "leg_upper_gastropod",
+    "type": "sub_body_part",
+    "max_coverage": 45,
+    "parent": "gastropod_foot",
+    "side": "both",
+    "opposite": "leg_upper_gastropod",
+    "name_multiple": "upper feet",
+    "name": "upper foot"
+  },
+  {
+    "id": "leg_lower_gastropod",
+    "type": "sub_body_part",
+    "max_coverage": 45,
+    "parent": "gastropod_foot",
+    "side": "both",
+    "opposite": "leg_lower_gastropod",
+    "name_multiple": "lower feet",
+    "name": "lower foot"
+  },
+  {
     "id": "leg_crab_basis_fl",
     "type": "sub_body_part",
     "max_coverage": 5,
