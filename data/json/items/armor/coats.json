@@ -118,6 +118,12 @@
         "specifically_covers": [ "leg_hip_l", "leg_hip_r" ],
         "coverage": 90,
         "encumbrance": [ 4, 5 ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 90,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
       }
     ],
     "pocket_data": [
@@ -3068,6 +3074,20 @@
         "layers": [ "BELTED" ]
       },
       {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ],
+        "layers": [ "BELTED" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_upper_gastropod" ],
+        "layers": [ "BELTED" ]
+      },
+      {
         "covers": [ "arm_l", "arm_r" ],
         "specifically_covers": [ "arm_shoulder_l", "arm_shoulder_r" ],
         "coverage": 40,
@@ -3152,6 +3172,20 @@
         "coverage": 85,
         "encumbrance": [ 4, 5 ],
         "specifically_covers": [ "leg_draped_l", "leg_draped_r" ],
+        "layers": [ "BELTED" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ],
+        "layers": [ "BELTED" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_upper_gastropod" ],
         "layers": [ "BELTED" ]
       },
       {
@@ -3250,6 +3284,20 @@
         "coverage": 85,
         "encumbrance": [ 4, 5 ],
         "specifically_covers": [ "leg_draped_l", "leg_draped_r" ],
+        "layers": [ "BELTED" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ],
+        "layers": [ "BELTED" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_upper_gastropod" ],
         "layers": [ "BELTED" ]
       },
       {
@@ -3357,6 +3405,18 @@
         "encumbrance": [ 4, 5 ]
       },
       {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_upper_gastropod" ]
+      },
+      {
         "covers": [ "leg_l", "leg_r" ],
         "specifically_covers": [ "leg_upper_l", "leg_upper_r" ],
         "coverage": 80,
@@ -3412,6 +3472,18 @@
         "specifically_covers": [ "leg_upper_l", "leg_upper_r" ],
         "coverage": 80,
         "encumbrance": [ 0, 0 ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_upper_gastropod" ]
       },
       { "covers": [ "tail_long", "tail_fluffy", "tail_bovine", "tail_rat" ], "coverage": 85, "encumbrance": [ 5, 5 ] },
       { "covers": [ "tail_thick", "tail_club" ], "coverage": 65, "encumbrance": [ 5, 5 ] }
@@ -3475,6 +3547,18 @@
         "coverage": 80,
         "encumbrance": [ 0, 0 ]
       },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_upper_gastropod" ]
+      },
       { "covers": [ "tail_long", "tail_fluffy", "tail_bovine", "tail_rat" ], "coverage": 85, "encumbrance": [ 5, 5 ] },
       { "covers": [ "tail_thick", "tail_club" ], "coverage": 65, "encumbrance": [ 5, 5 ] }
     ]
@@ -3510,6 +3594,12 @@
         "coverage": 100,
         "encumbrance": 3
       },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": 3,
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
+      },
       { "covers": [ "leg_l", "leg_r" ], "specifically_covers": [ "leg_upper_l", "leg_upper_r" ], "coverage": 80 }
     ]
   },
@@ -3535,6 +3625,18 @@
         "encumbrance": 7,
         "coverage": 100,
         "covers": [ "leg_l", "leg_r", "torso", "arm_l", "arm_r", "tail_long", "tail_fluffy", "tail_bovine", "tail_rat" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": 7,
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 95,
+        "encumbrance": 7,
+        "specifically_covers": [ "leg_upper_gastropod" ]
       },
       { "encumbrance": 7, "coverage": 85, "covers": [ "tail_thick", "tail_club" ] }
     ]
@@ -3569,11 +3671,18 @@
         "encumbrance": [ 0, 0 ]
       },
       {
-        "covers": [ "tail_long", "tail_fluffy", "tail_bovine", "tail_rat" ],
-        "coverage": 75,
-        "encumbrance": [ 5, 5 ],
-        "layers": [ "BELTED" ]
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
       },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 0, 0 ],
+        "specifically_covers": [ "leg_upper_gastropod" ]
+      },
+      { "covers": [ "tail_long", "tail_fluffy", "tail_bovine", "tail_rat" ], "coverage": 75, "encumbrance": [ 5, 5 ] },
       { "covers": [ "tail_thick", "tail_club" ], "coverage": 50, "encumbrance": [ 5, 5 ], "layers": [ "BELTED" ] }
     ],
     "pocket_data": [
@@ -3617,6 +3726,18 @@
         "specifically_covers": [ "leg_upper_l", "leg_upper_r" ],
         "coverage": 80,
         "encumbrance": [ 0, 0 ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 0, 0 ],
+        "specifically_covers": [ "leg_upper_gastropod" ]
       },
       {
         "covers": [ "tail_long", "tail_fluffy", "tail_bovine", "tail_rat" ],
@@ -3678,6 +3799,18 @@
         "specifically_covers": [ "leg_upper_l", "leg_upper_r" ],
         "coverage": 80,
         "encumbrance": [ 0, 0 ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 0, 0 ],
+        "specifically_covers": [ "leg_upper_gastropod" ]
       },
       {
         "covers": [ "tail_long", "tail_fluffy", "tail_bovine", "tail_rat" ],
@@ -3971,6 +4104,18 @@
         "coverage": 80,
         "encumbrance": [ 0, 0 ]
       },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": [ 4, 5 ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 60,
+        "encumbrance": [ 0, 0 ],
+        "specifically_covers": [ "leg_upper_gastropod" ]
+      },
       { "covers": [ "tail_long", "tail_fluffy", "tail_bovine", "tail_rat" ], "coverage": 75, "encumbrance": [ 5, 5 ] },
       { "covers": [ "tail_thick", "tail_club" ], "coverage": 50, "encumbrance": [ 5, 5 ] }
     ],
@@ -4003,6 +4148,20 @@
         "coverage": 95,
         "encumbrance": 12,
         "specifically_covers": [ "leg_draped_l", "leg_draped_r" ],
+        "layers": [ "BELTED" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": 12,
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ],
+        "layers": [ "BELTED" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 95,
+        "encumbrance": 12,
+        "specifically_covers": [ "leg_upper_gastropod" ],
         "layers": [ "BELTED" ]
       },
       { "covers": [ "arm_l", "arm_r" ], "coverage": 100, "encumbrance": 12 },
@@ -4039,6 +4198,20 @@
         "coverage": 95,
         "encumbrance": 10,
         "specifically_covers": [ "leg_draped_l", "leg_draped_r" ],
+        "layers": [ "BELTED" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 100,
+        "encumbrance": 10,
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ],
+        "layers": [ "BELTED" ]
+      },
+      {
+        "covers": [ "gastropod_foot" ],
+        "coverage": 85,
+        "encumbrance": 10,
+        "specifically_covers": [ "leg_upper_gastropod" ],
         "layers": [ "BELTED" ]
       },
       { "covers": [ "arm_l", "arm_r" ], "coverage": 100, "encumbrance": 10 },
