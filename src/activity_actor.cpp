@@ -161,6 +161,7 @@ static const activity_id ACT_CLEAR_RUBBLE( "ACT_CLEAR_RUBBLE" );
 static const activity_id ACT_CONSUME( "ACT_CONSUME" );
 static const activity_id ACT_CRACKING( "ACT_CRACKING" );
 static const activity_id ACT_CRAFT( "ACT_CRAFT" );
+static const activity_id ACT_CRAFT_WAIT( "ACT_CRAFT_WAIT" );
 static const activity_id ACT_DISABLE( "ACT_DISABLE" );
 static const activity_id ACT_DISASSEMBLE( "ACT_DISASSEMBLE" );
 static const activity_id ACT_DISMEMBER( "ACT_DISMEMBER" );
@@ -6493,6 +6494,9 @@ void craft_activity_actor::serialize( JsonOut &jsout ) const
     jsout.member( "craft_loc", craft_item );
     jsout.member( "long", is_long );
     jsout.member( "activity_override", activity_override );
+    if( mode_ == mode::waiting ) {
+        jsout.member( "mode", "waiting" );
+    }
 
     jsout.end_object();
 }
@@ -6506,6 +6510,10 @@ std::unique_ptr<activity_actor> craft_activity_actor::deserialize( JsonValue &js
     data.read( "craft_loc", actor.craft_item );
     data.read( "long", actor.is_long );
     data.read( "activity_override", actor.activity_override );
+    std::string mode_str;
+    if( data.read( "mode", mode_str ) && mode_str == "waiting" ) {
+        actor.mode_ = mode::waiting;
+    }
 
     return actor.clone();
 }
@@ -14735,6 +14743,7 @@ deserialize_functions = {
     { ACT_CONSUME, &consume_activity_actor::deserialize },
     { ACT_CRACKING, &safecracking_activity_actor::deserialize },
     { ACT_CRAFT, &craft_activity_actor::deserialize },
+    { ACT_CRAFT_WAIT, &craft_activity_actor::deserialize },
     { ACT_DISABLE, &disable_activity_actor::deserialize },
     { ACT_DISASSEMBLE, &disassemble_activity_actor::deserialize },
     { ACT_DISMEMBER, &butchery_activity_actor::deserialize },
