@@ -16,6 +16,7 @@
 
 #include "build_reqs.h"
 #include "calendar.h"
+#include "crafting_enums.h"
 #include "proficiency.h"
 #include "requirements.h"
 #include "translation.h"
@@ -125,6 +126,13 @@ struct recipe_step {
     std::vector<std::pair<requirement_id, int>> reqs_external;
     // Populated during finalize from reqs_internal + reqs_external
     requirement_data requirements;
+
+    step_attention attention = step_attention::none;
+    // nullopt = step waits indefinitely.
+    std::optional<time_duration> max_time;
+    // Buffer past max_time before destruction.  Requires max_time.
+    std::optional<time_duration> grace_period;
+    translation unattend_message;
 
     void load( const JsonObject &jo, const std::string &recipe_name, int step_index );
 };
@@ -316,6 +324,7 @@ class recipe
         const std::vector<recipe_step> &steps() const {
             return steps_;
         }
+        bool has_attention_steps() const;
         // Returns aggregate proficiencies for step recipes, or the legacy
         // proficiencies field for stepless recipes.  This is a conservative
         // whole-recipe approximation used for display, gating, approximate
