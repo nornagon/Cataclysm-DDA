@@ -19,7 +19,7 @@
     "hit_difficulty": 1.2,
     "is_limb": true,
     "is_vital": false,
-    "limb_type": "wing",
+    "limb_types": "wing",
     "base_hp": 45,
     "health_limit": 15,
     "mend_rate": 0.75,
@@ -47,7 +47,7 @@
     "hp_bar_ui_text": "R WING",
     "main_part": "wing_ravenfolk_r",
     "opposite_part": "wing_ravenfolk_l",
-    "limb_type": "wing",
+    "limb_types": "wing",
     "limb_scores": [ [ "reaction", 0.1 ] ],
     "side": "right",
     "sub_parts": [ "wing_ravenfolk_shoulder_r", "wing_ravenfolk_upper_r", "wing_ravenfolk_joint_r", "wing_ravenfolk_lower_r" ]
