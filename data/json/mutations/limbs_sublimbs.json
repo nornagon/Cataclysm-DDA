@@ -1545,8 +1545,7 @@
     "side": "left",
     "opposite": "leg_hip_gastropod_r",
     "name_multiple": "hips",
-    "name": "left hip",
-    "similar_bodypart": "leg_hip_l"
+    "name": "left hip"
   },
   {
     "id": "leg_hip_gastropod_r",
@@ -1556,8 +1555,7 @@
     "side": "right",
     "opposite": "leg_hip_gastropod_l",
     "name_multiple": "hips",
-    "name": "left hip",
-    "similar_bodypart": "leg_hip_r"
+    "name": "left hip"
   },
   {
     "id": "leg_upper_gastropod",

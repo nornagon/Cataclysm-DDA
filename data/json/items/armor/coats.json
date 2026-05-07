@@ -76,7 +76,7 @@
         "covers": [ "gastropod_foot" ],
         "coverage": 100,
         "encumbrance": 10,
-        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r", "leg_upper_gastropod" ],
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ],
         "layers": [ "BELTED" ]
       },
       {
