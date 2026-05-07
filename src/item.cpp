@@ -4578,14 +4578,15 @@ bool item::process_wet( Character *carrier, const tripoint_bub_ms & /*pos*/ )
     return true;
 }
 
-std::vector<desired_wakeup> item::enumerate_scheduled_wakeups() const
+std::vector<desired_wakeup> item::enumerate_scheduled_wakeups( const item_location &loc ) const
 {
-    return enumerate_scheduled_dispatch( *this );
+    return enumerate_scheduled_dispatch( *this, loc );
 }
 
-void item::actualize_scheduled( item_wakeup_kind kind, time_point now )
+void item::actualize_scheduled( item_wakeup_kind kind, time_point now,
+                                const item_location &loc )
 {
-    actualize_scheduled_dispatch( *this, kind, now );
+    actualize_scheduled_dispatch( *this, kind, now, loc );
 }
 
 bool item::process( map &here, Character *carrier, const tripoint_bub_ms &pos, float insulation,
