@@ -677,7 +677,7 @@
     "looks_like": "vest_leather",
     "color": "light_red",
     "warmth": 0,
-    "flags": [ "VARSIZE", "STURDY", "OUTER" ],
+    "flags": [ "VARSIZE", "STURDY", "OUTER", "ALLOWS_GASTROPOD_FOOT" ],
     "pocket_data": [
       {
         "pocket_type": "CONTAINER",
@@ -704,6 +704,13 @@
         "specifically_covers": [ "leg_hip_l", "leg_hip_r" ],
         "coverage": 50,
         "encumbrance": 0
+      },
+      {
+        "material": [ { "type": "steel", "covered_by_mat": 100, "thickness": 1.2 } ],
+        "covers": [ "gastropod_foot" ],
+        "coverage": 50,
+        "encumbrance": 0,
+        "specifically_covers": [ "leg_hip_gastropod_l", "leg_hip_gastropod_r" ]
       },
       {
         "material": [ { "type": "steel", "covered_by_mat": 100, "thickness": 1.2 } ],
