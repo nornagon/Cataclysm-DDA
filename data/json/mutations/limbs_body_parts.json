@@ -1462,7 +1462,7 @@
     "hp_bar_ui_text": "TST TAIL",
     "base_hp": 20,
     "limb_scores": [ [ "balance", 0.0 ] ],
-    "sub_parts": [ "sub_limb_debug_tail" ]
+    "sub_parts": [ "tail_default_base", "tail_default_center", "tail_default_tip" ]
   },
   {
     "id": "tail_long",
