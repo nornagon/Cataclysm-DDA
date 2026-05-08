@@ -1953,7 +1953,7 @@
       { "covers": [ "tail_thick", "tail_club" ], "coverage": 40 }
     ],
     "material_thickness": 0.65,
-    "flags": [ "VARSIZE" ]
+    "flags": [ "VARSIZE", "ALLOWS_GASTROPOD_FOOT" ]
   },
   {
     "id": "skirt",
@@ -1973,7 +1973,7 @@
     "pocket_data": [ { "pocket_type": "CONTAINER", "max_contains_volume": "250 ml", "max_contains_weight": "1 kg", "moves": 80 } ],
     "warmth": 5,
     "material_thickness": 0.1,
-    "flags": [ "VARSIZE" ],
+    "flags": [ "VARSIZE", "ALLOWS_GASTROPOD_FOOT" ],
     "armor": [
       { "coverage": 100, "covers": [ "leg_l", "leg_r" ], "specifically_covers": [ "leg_hip_l", "leg_hip_r" ] },
       { "coverage": 75, "covers": [ "leg_l", "leg_r" ], "specifically_covers": [ "leg_upper_l", "leg_upper_r" ] },
@@ -2087,7 +2087,7 @@
     "faults": [ { "fault_group": "fabric_cotton" } ],
     "warmth": 10,
     "material_thickness": 0.2,
-    "flags": [ "VARSIZE" ],
+    "flags": [ "VARSIZE", "ALLOWS_GASTROPOD_FOOT" ],
     "armor": [
       {
         "covers": [ "gastropod_foot" ],
@@ -2115,7 +2115,7 @@
     "color": "yellow",
     "warmth": 1,
     "material_thickness": 1,
-    "flags": [ "VARSIZE", "OVERSIZE", "WATER_FRIENDLY" ],
+    "flags": [ "VARSIZE", "OVERSIZE", "WATER_FRIENDLY", "ALLOWS_GASTROPOD_FOOT" ],
     "armor": [
       { "coverage": 100, "covers": [ "leg_l", "leg_r" ], "specifically_covers": [ "leg_hip_l", "leg_hip_r" ] },
       { "coverage": 38, "covers": [ "leg_l", "leg_r" ], "specifically_covers": [ "leg_upper_l", "leg_upper_r" ] },
@@ -2145,7 +2145,7 @@
     "color": "brown",
     "warmth": 10,
     "material_thickness": 0.6,
-    "flags": [ "VARSIZE" ],
+    "flags": [ "VARSIZE", "ALLOWS_GASTROPOD_FOOT" ],
     "armor": [
       {
         "encumbrance": 10,

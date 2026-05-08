@@ -677,7 +677,7 @@
     "faults": [ { "fault_group": "fabric_cotton" } ],
     "warmth": 5,
     "material_thickness": 0.2,
-    "flags": [ "VARSIZE" ],
+    "flags": [ "VARSIZE", "ALLOWS_GASTROPOD_FOOT" ],
     "armor": [
       { "encumbrance": 7, "coverage": 85, "covers": [ "torso" ] },
       { "encumbrance": 4, "coverage": 55, "covers": [ "leg_l", "leg_r" ] },
