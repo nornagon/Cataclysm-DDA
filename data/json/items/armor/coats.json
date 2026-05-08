@@ -62,7 +62,7 @@
     "color": "dark_gray",
     "warmth": 20,
     "material_thickness": 1,
-    "flags": [ "VARSIZE" ],
+    "flags": [ "VARSIZE", "ALLOWS_GASTROPOD_FOOT" ],
     "armor": [
       { "covers": [ "torso" ], "specifically_covers": [ "torso_upper", "torso_lower" ], "coverage": 100, "encumbrance": 10 },
       {
@@ -147,7 +147,7 @@
     "warmth": 80,
     "material_thickness": 2,
     "environmental_protection": 2,
-    "flags": [ "VARSIZE", "POCKETS", "OUTER" ],
+    "flags": [ "VARSIZE", "POCKETS", "OUTER", "ALLOWS_GASTROPOD_FOOT" ],
     "variant_type": "generic",
     "variants": [
       {
@@ -676,7 +676,7 @@
     "warmth": 15,
     "material_thickness": 1.5,
     "environmental_protection": 2,
-    "flags": [ "VARSIZE", "POCKETS", "OUTER", "RAINPROOF" ]
+    "flags": [ "VARSIZE", "POCKETS", "OUTER", "RAINPROOF", "ALLOWS_GASTROPOD_FOOT" ]
   },
   {
     "id": "duster_fur",
