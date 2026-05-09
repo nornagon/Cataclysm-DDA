@@ -267,7 +267,7 @@ turret_cpu::~turret_cpu() = default;
 // NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
 turret_cpu &turret_cpu::operator=( const turret_cpu & )
 {
-    brain.reset();
+    brain = nullptr;
     return *this;
 }
 

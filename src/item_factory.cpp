@@ -5309,6 +5309,7 @@ void items::finalize_all()
 void items::reset()
 {
     item_controller->get_generic_factory().reset();
+    // NOLINTNEXTLINE(readability-ambiguous-smartptr-reset-call) calls Item_factory::reset, not unique_ptr::reset
     item_controller->reset();
 }
 
