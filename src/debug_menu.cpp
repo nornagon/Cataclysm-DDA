@@ -3189,7 +3189,8 @@ static void debug_menu_game_state()
             creature_names_sorted.emplace_back( it );
         }
 
-        std::stable_sort( creature_names_sorted.begin(), creature_names_sorted.end(), []( auto a, auto b ) {
+        std::stable_sort( creature_names_sorted.begin(), creature_names_sorted.end(),
+        []( const auto & a, const auto & b ) {
             return a.second > b.second;
         } );
 
