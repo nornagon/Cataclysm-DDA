@@ -4086,7 +4086,7 @@ int vehicle::ground_acceleration( map &here, const bool fueled, int at_vel_in_vm
     if( !( engine_on || skidding ) ) {
         return 0;
     }
-    int target_vmiph = std::max( at_vel_in_vmi, std::max( 1000, max_velocity( here, fueled ) / 4 ) );
+    int target_vmiph = std::max( { at_vel_in_vmi, 1000, max_velocity( here, fueled ) / 4 } );
     int cmps = vmiph_to_cmps( target_vmiph );
     double weight = to_kilogram( total_mass( here ) );
     if( is_towing() ) {
@@ -4118,8 +4118,7 @@ int vehicle::water_acceleration( map &here, const bool fueled, int at_vel_in_vmi
     if( !( engine_on || skidding ) ) {
         return 0;
     }
-    int target_vmiph = std::max( at_vel_in_vmi, std::max( 1000,
-                                 max_water_velocity( here, fueled ) / 4 ) );
+    int target_vmiph = std::max( { at_vel_in_vmi, 1000, max_water_velocity( here, fueled ) / 4 } );
     int cmps = vmiph_to_cmps( target_vmiph );
     double weight = to_kilogram( total_mass( here ) );
     if( is_towing() ) {
@@ -4632,8 +4631,8 @@ double vehicle::coeff_air_drag() const
         c_air_drag_c += ( dc.pro > dc.hboard ) ? c_air_mod : 0;
         // not having halfboards in front of any windshields or fullboards moderately worsens
         // air drag
-        c_air_drag_c += ( std::max( std::max( dc.hboard, dc.fboard ),
-                                    dc.shield ) != dc.hboard ) ? 2 * c_air_mod : 0;
+        c_air_drag_c += ( std::max( { dc.hboard, dc.fboard, dc.shield } ) != dc.hboard ) ? 2 * c_air_mod :
+                        0;
         // not having windshields in front of seats severely worsens air drag
         c_air_drag_c += ( dc.shield < dc.seat ) ? 3 * c_air_mod : 0;
         // missing roofs and open doors severely worsen air drag
