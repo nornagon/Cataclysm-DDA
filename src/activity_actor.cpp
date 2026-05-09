@@ -1527,7 +1527,7 @@ std::unique_ptr<activity_actor> hacksaw_activity_actor::deserialize( JsonValue &
     data.read( "type", actor.type );
     data.read( "veh_pos", actor.veh_pos );
     data.read( "moves_left", actor.moves_left );
-    return actor.clone();
+    return std::make_unique<hacksaw_activity_actor>( actor );
 }
 
 static std::string enumerate_ints_to_string( const std::vector<int> &vec )
@@ -6831,7 +6831,7 @@ static void debug_drop_list( const std::vector<drop_or_stash_item_info> &items )
 
     std::string res( "Items ordered to drop:\n" );
     for( const drop_or_stash_item_info &it : items ) {
-        item_location loc = it.loc();
+        const item_location &loc = it.loc();
         if( !loc ) {
             // some items could have been destroyed by e.g. monster attack
             continue;
@@ -8962,6 +8962,8 @@ void outfit_swap_actor::finish( player_activity &act, Character &who )
             //Due to the eoc triggered who.takeoff, the item may become invalid.
             continue;
         }
+        // Copy is intentional: who.takeoff below may invalidate worn_item.
+        // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
         item outfit_component( *worn_item );
         std::size_t old_it_list_size = it_list.size();
         if( who.takeoff( worn_item, &it_list ) && it_list.size() > old_it_list_size ) {
