@@ -5783,8 +5783,8 @@ static Character &best_installer( Character &you, Character &null_player, int di
 }
 
 template<typename ...Args>
-inline void popup_player_or_npc( Character &you, const char *player_mes, const char *npc_mes,
-                                 Args &&... args )
+static inline void popup_player_or_npc( Character &you, const char *player_mes, const char *npc_mes,
+                                        Args &&... args )
 {
     if( you.is_avatar() ) {
         popup( player_mes, std::forward<Args>( args )... );

@@ -6580,8 +6580,8 @@ bool map::only_liquid_in_liquidcont( const tripoint_bub_ms &p )
 }
 
 template <typename Stack>
-std::list<item> use_amount_stack( Stack stack, const itype_id &type, int &quantity,
-                                  const std::function<bool( const item & )> &filter )
+static std::list<item> use_amount_stack( Stack stack, const itype_id &type, int &quantity,
+        const std::function<bool( const item & )> &filter )
 {
     std::list<item> ret;
     for( auto a = stack.begin(); a != stack.end() && quantity > 0; ) {
