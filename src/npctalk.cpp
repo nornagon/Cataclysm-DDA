@@ -9272,7 +9272,7 @@ std::string npc::pick_talk_topic( const Character &/*u*/ )
     return chatbin.talk_stranger_neutral;
 }
 
-std::string const &npc::get_specified_talk_topic( std::string const &topic_id )
+std::string npc::get_specified_talk_topic( std::string const &topic_id )
 {
     static const dialogue_chatbin default_chatbin;
     std::vector<std::pair<std::string const &, std::string const &>> const talk_topics = {
