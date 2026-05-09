@@ -763,7 +763,12 @@ void map::resolve_off_map_grid_generation()
     power_network_manager &pnm = g->power_networks();
     pnm.begin_rebuild();
 
-    for( vehicle *veh : in_bubble ) {
+    std::vector<vehicle *> ordered_in_bubble( in_bubble.begin(), in_bubble.end() );
+    std::sort( ordered_in_bubble.begin(), ordered_in_bubble.end(),
+    []( const vehicle * a, const vehicle * b ) {
+        return a->pos_abs() < b->pos_abs();
+    } );
+    for( vehicle *veh : ordered_in_bubble ) {
         if( resolved.count( veh ) ) {
             continue;
         }
@@ -925,7 +930,12 @@ void map::vehmove()
             veh->get_connected_vehicles( *this, connected_vehs );
         }
     }
-    for( vehicle *connected_veh : connected_vehs ) {
+    std::vector<vehicle *> ordered_connected( connected_vehs.begin(), connected_vehs.end() );
+    std::sort( ordered_connected.begin(), ordered_connected.end(),
+    []( const vehicle * a, const vehicle * b ) {
+        return a->pos_abs() < b->pos_abs();
+    } );
+    for( vehicle *connected_veh : ordered_connected ) {
         vehs.emplace( connected_veh, false ); // add with 'false' if does not exist (off map)
     }
     for( const std::pair<vehicle *const, bool> &veh_pair : vehs ) {
