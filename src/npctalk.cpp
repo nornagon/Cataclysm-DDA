@@ -2251,7 +2251,8 @@ int talk_trial::calc_chance( const_dialogue const &d ) const
     int chance = difficulty;
     switch( type ) {
         case NUM_TALK_TRIALS:
-            dbg( D_ERROR ) << "called calc_chance with invalid talk_trial value: " << type;
+            dbg( D_ERROR ) << "called calc_chance with invalid talk_trial value: "
+                           << static_cast<unsigned int>( type );
             break;
         case TALK_TRIAL_NONE:
             chance = 100;
