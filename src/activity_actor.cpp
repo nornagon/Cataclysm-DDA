@@ -1527,7 +1527,7 @@ std::unique_ptr<activity_actor> hacksaw_activity_actor::deserialize( JsonValue &
     data.read( "type", actor.type );
     data.read( "veh_pos", actor.veh_pos );
     data.read( "moves_left", actor.moves_left );
-    return actor.clone();
+    return std::make_unique<hacksaw_activity_actor>( actor );
 }
 
 static std::string enumerate_ints_to_string( const std::vector<int> &vec )
