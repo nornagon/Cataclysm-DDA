@@ -1173,7 +1173,11 @@ struct projectile_attack_results {
     std::string wp_hit;
     bool is_crit = false;
     bool is_headshot = false;
-    const weakpoint *wp;
+    // TODO: select_body_part_projectile_attack only sets wp for monster targets; the
+    // non-monster path leaves it null, so deal_projectile_attack must guard the deref.
+    // Long-term: change deal_damage to take const weakpoint* (or std::optional) so the
+    // missing weakpoint is explicit at the API boundary.
+    const weakpoint *wp = nullptr;
 
     explicit projectile_attack_results( const projectile &proj ) {
         max_damage = proj.impact.total_damage();
@@ -1449,7 +1453,10 @@ void Creature::deal_projectile_attack( map *here, Creature *source, dealt_projec
         }
     }
 
-    dealt_dam = deal_damage( source, hit_selection.bp_hit, impact, wp_attack_copy, *hit_selection.wp );
+    // TODO: see note on projectile_attack_results::wp; this fallback hides the API gap.
+    static const weakpoint default_weakpoint;
+    dealt_dam = deal_damage( source, hit_selection.bp_hit, impact, wp_attack_copy,
+                             hit_selection.wp ? *hit_selection.wp : default_weakpoint );
     // Force damage instance to match the selected body point
     dealt_dam.bp_hit = hit_selection.bp_hit;
     // Retrieve the selected weakpoint from the damage instance.
