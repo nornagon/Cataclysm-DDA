@@ -263,6 +263,8 @@ vehicle::~vehicle() = default;
 
 turret_cpu::~turret_cpu() = default;
 
+// rhs is intentionally ignored; assignment resets the cached brain.
+// NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
 turret_cpu &turret_cpu::operator=( const turret_cpu & )
 {
     brain.reset();
